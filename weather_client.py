@@ -6,7 +6,7 @@ async def fetch_weather(lat: float, lon: float):
     params = {
         "latitude": lat,
         "longitude": lon,
-        "hourly": "temperature_2m,precipitation,weather_code",  # Aggiungiamo weather_code
+        "hourly": "temperature_2m,precipitation,weather_code,windspeed_10m,windgusts_10m",
         "forecast_days": 3,
         "timezone": "Europe/Rome"
     }
