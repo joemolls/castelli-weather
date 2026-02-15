@@ -344,6 +344,11 @@
     }
     
     function createChart(data, chartId, dayLabelsId) {
+      if (!data || !data.hourly || !data.hourly.time || data.hourly.time.length === 0) {
+        console.error('No data available for chart:', chartId);
+        return;
+      }
+      
       const labels = data.hourly.time.map(t => new Date(t));
       
       const daySeparators = [];
@@ -362,25 +367,34 @@
       dayRanges.push({ start: dayStart, end: labels.length - 1, date: labels[dayStart] });
       
       const dayLabelsContainer = document.getElementById(dayLabelsId);
-      dayRanges.forEach(range => {
-        const div = document.createElement('div');
-        div.className = 'day-label';
-        const dayName = range.date.toLocaleDateString('it-IT', { weekday: 'long' });
-        const dayDate = range.date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
-        
-        const midDayIndex = range.start + Math.floor((range.end - range.start) / 2);
-        const weatherCode = data.hourly.weather_code[midDayIndex];
-        const icon = getWeatherIcon(weatherCode);
-        
-        div.innerHTML = `
-          <span class="weather-icon">${icon}</span>
-          ${dayName}<br>
-          <small style="color: #7f8c8d;">${dayDate}</small>
-        `;
-        dayLabelsContainer.appendChild(div);
-      });
+      if (dayLabelsContainer) {
+        dayRanges.forEach(range => {
+          const div = document.createElement('div');
+          div.className = 'day-label';
+          const dayName = range.date.toLocaleDateString('it-IT', { weekday: 'long' });
+          const dayDate = range.date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+          
+          const midDayIndex = range.start + Math.floor((range.end - range.start) / 2);
+          const weatherCode = data.hourly.weather_code && data.hourly.weather_code[midDayIndex] 
+            ? data.hourly.weather_code[midDayIndex] 
+            : 0;
+          const icon = getWeatherIcon(weatherCode);
+          
+          div.innerHTML = `
+            <span class="weather-icon">${icon}</span>
+            ${dayName}<br>
+            <small style="color: #7f8c8d;">${dayDate}</small>
+          `;
+          dayLabelsContainer.appendChild(div);
+        });
+      }
       
       const ctx = document.getElementById(chartId);
+      if (!ctx) {
+        console.error('Canvas element not found:', chartId);
+        return;
+      }
+      
       new Chart(ctx, {
         type: 'bar',
         data: {
@@ -389,7 +403,7 @@
             {
               type: 'bar',
               label: 'Precipitazioni (mm)',
-              data: data.hourly.precipitation,
+              data: data.hourly.precipitation || [],
               backgroundColor: 'rgba(52, 152, 219, 0.6)',
               borderColor: 'rgba(52, 152, 219, 1)',
               borderWidth: 1,
@@ -399,7 +413,7 @@
             {
               type: 'line',
               label: 'Temperatura (°C)',
-              data: data.hourly.temperature_2m,
+              data: data.hourly.temperature_2m || [],
               borderColor: 'rgba(231, 76, 60, 1)',
               backgroundColor: 'rgba(231, 76, 60, 0.1)',
               borderWidth: 2,
@@ -413,7 +427,7 @@
             {
               type: 'line',
               label: 'Vento (km/h)',
-              data: data.hourly.windspeed_10m,
+              data: data.hourly.windspeed_10m || [],
               borderColor: 'rgba(46, 204, 113, 1)',
               backgroundColor: 'rgba(46, 204, 113, 0.1)',
               borderWidth: 2,
@@ -429,6 +443,7 @@
         },
         options: {
           responsive: true,
+          maintainAspectRatio: true,
           interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { display: true, position: 'top', labels: { usePointStyle: true, padding: 15 } },
@@ -451,9 +466,9 @@
                 },
                 afterTitle: function(context) {
                   const index = context[0].dataIndex;
-                  const weatherCode = data.hourly.weather_code[index];
-                  const wind = data.hourly.windspeed_10m[index];
-                  const gust = data.hourly.windgusts_10m[index];
+                  const weatherCode = data.hourly.weather_code ? data.hourly.weather_code[index] : 0;
+                  const wind = data.hourly.windspeed_10m ? data.hourly.windspeed_10m[index] : 0;
+                  const gust = data.hourly.windgusts_10m ? data.hourly.windgusts_10m[index] : 0;
                   const icon = getWeatherIcon(weatherCode);
                   const desc = getWeatherDescription(weatherCode);
                   return `${icon} ${desc}\n💨 Raffiche: ${gust.toFixed(0)} km/h`;
@@ -462,7 +477,10 @@
             }
           },
           scales: {
-            x: { ticks: { maxRotation: 90, minRotation: 45, autoSkip: true, maxTicksLimit: 24, font: { size: 10 } }, grid: { display: false } },
+            x: { 
+              ticks: { maxRotation: 90, minRotation: 45, autoSkip: true, maxTicksLimit: 24, font: { size: 10 } }, 
+              grid: { display: false } 
+            },
             y: {
               type: 'linear', display: true, position: 'left',
               title: { display: true, text: 'Temperatura (°C)', color: 'rgba(231, 76, 60, 1)', font: { weight: 'bold', size: 11 } },
@@ -472,11 +490,13 @@
               type: 'linear', display: true, position: 'right',
               title: { display: true, text: 'Precipitazioni (mm)', color: 'rgba(52, 152, 219, 1)', font: { weight: 'bold', size: 11 } },
               ticks: { color: 'rgba(52, 152, 219, 1)' },
-              grid: { drawOnChartArea: false }, beginAtZero: true
+              grid: { drawOnChartArea: false }, 
+              beginAtZero: true
             },
             y2: {
               type: 'linear', display: false, position: 'right',
-              grid: { drawOnChartArea: false }, beginAtZero: true,
+              grid: { drawOnChartArea: false }, 
+              beginAtZero: true,
               max: 60
             }
           }
@@ -484,7 +504,10 @@
       });
     }
     
+    // Crea tutti i grafici
+    console.log('Creating charts for', locationsData.length, 'locations');
     locationsData.forEach((location, index) => {
+      console.log('Creating chart for:', location.name);
       createChart(location, `chart${index + 1}`, `dayLabels${index + 1}`);
     });
   </script>
