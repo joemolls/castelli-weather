@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: castelli-weather
+    env: docker
+    region: frankfurt
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 8080

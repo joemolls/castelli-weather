@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Castelli Romani - Previsioni Meteo 72h</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 0;
+      padding: 20px; 
+      background-color: #ecf0f1;
+    }
+    h1 { 
+      text-align: center; 
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #7f8c8d;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .location-section {
+      max-width: 1000px;
+      margin: 30px auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .location-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .location-name {
+      font-size: 22px;
+      font-weight: bold;
+    }
+    .location-elevation {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .day-labels { 
+      display: flex; 
+      padding: 15px 20px;
+      border-bottom: 2px solid #3498db;
+      background: #f8f9fa;
+    }
+    .day-label { 
+      font-weight: bold; 
+      font-size: 15px;
+      color: #2c3e50;
+      text-align: center;
+      flex: 1;
+      text-transform: capitalize;
+    }
+    .weather-icon {
+      font-size: 24px;
+      display: block;
+      margin: 5px 0;
+    }
+    .chart-container {
+      padding: 20px;
+    }
+    footer {
+      max-width: 1000px;
+      margin: 50px auto 20px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      text-align: center;
+      color: #7f8c8d;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    footer h3 {
+      color: #2c3e50;
+      margin-bottom: 15px;
+      font-size: 16px;
+    }
+    footer a {
+      color: #3498db;
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+    .data-source {
+      margin: 10px 0;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.1/dist/chartjs-plugin-annotation.min.js"></script>
+</head>
+<body>
+  <h1>🏔️ Castelli Romani - Previsioni Meteo</h1>
+  <div class="subtitle">Previsioni a 72 ore per le principali vette dei Castelli Romani</div>
+  
+  {% for location in locations_data %}
+  <div class="location-section">
+    <div class="location-header">
+      <div class="location-name">{{ location.name }}</div>
+      <div class="location-elevation">⛰️ {{ location.elevation }}m s.l.m.</div>
+    </div>
+    
+    <div class="day-labels" id="dayLabels{{ loop.index }}"></div>
+    
+    <div class="chart-container">
+      <canvas id="chart{{ loop.index }}"></canvas>
+    </div>
+  </div>
+  {% endfor %}
+  
+  <footer>
+    <h3>📊 Fonti dei Dati</h3>
+    <div class="data-source">
+      <strong>Dati meteorologici:</strong> 
+      <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a> - 
+      Servizio gratuito di previsioni meteorologiche basato su modelli numerici open-source
+    </div>
+    <div class="data-source">
+      <strong>API utilizzata:</strong> 
+      <a href="https://open-meteo.com/en/docs" target="_blank">Open-Meteo Forecast API</a>
+    </div>
+    <div class="data-source">
+      <strong>Coordinate geografiche:</strong> 
+      Rilevate dalle località dei Castelli Romani (Lazio, Italia)
+    </div>
+    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ecf0f1; font-size: 12px;">
+      I dati sono aggiornati in tempo reale e provengono da modelli meteorologici pubblici. 
+      Per maggiori informazioni visita <a href="https://open-meteo.com/" target="_blank">open-meteo.com</a>
+    </div>
+  </footer>
+  
+  <script>
+    const locationsData = {{ locations_data | tojson }};
+    
+    // Mappa WMO Weather codes alle icone emoji
+    function getWeatherIcon(code) {
+      const weatherIcons = {
+        0: '☀️',   // Clear sky
+        1: '🌤️',   // Mainly clear
+        2: '⛅',   // Partly cloudy
+        3: '☁️',   // Overcast
+        45: '🌫️',  // Fog
+        48: '🌫️',  // Depositing rime fog
+        51: '🌦️',  // Drizzle light
+        53: '🌦️',  // Drizzle moderate
+        55: '🌧️',  // Drizzle dense
+        61: '🌧️',  // Rain slight
+        63: '🌧️',  // Rain moderate
+        65: '🌧️',  // Rain heavy
+        71: '🌨️',  // Snow fall slight
+        73: '🌨️',  // Snow fall moderate
+        75: '🌨️',  // Snow fall heavy
+        77: '❄️',   // Snow grains
+        80: '🌦️',  // Rain showers slight
+        81: '🌧️',  // Rain showers moderate
+        82: '⛈️',  // Rain showers violent
+        85: '🌨️',  // Snow showers slight
+        86: '🌨️',  // Snow showers heavy
+        95: '⛈️',  // Thunderstorm
+        96: '⛈️',  // Thunderstorm with hail
+        99: '⛈️'   // Thunderstorm with heavy hail
+      };
+      return weatherIcons[code] || '🌡️';
+    }
+    
+    function getWeatherDescription(code) {
+      const descriptions = {
+        0: 'Cielo sereno',
+        1: 'Principalmente sereno',
+        2: 'Parzialmente nuvoloso',
+        3: 'Coperto',
+        45: 'Nebbia',
+        48: 'Nebbia con brina',
+        51: 'Pioggerella leggera',
+        53: 'Pioggerella moderata',
+        55: 'Pioggerella intensa',
+        61: 'Pioggia leggera',
+        63: 'Pioggia moderata',
+        65: 'Pioggia forte',
+        71: 'Neve leggera',
+        73: 'Neve moderata',
+        75: 'Neve intensa',
+        77: 'Nevischio',
+        80: 'Rovesci leggeri',
+        81: 'Rovesci moderati',
+        82: 'Rovesci violenti',
+        85: 'Nevicate leggere',
+        86: 'Nevicate intense',
+        95: 'Temporale',
+        96: 'Temporale con grandine',
+        99: 'Temporale forte con grandine'
+      };
+      return descriptions[code] || 'Variabile';
+    }
+    
+    function createChart(data, chartId, dayLabelsId) {
+      const labels = data.hourly.time.map(t => new Date(t));
+      
+      // Trova separatori dei giorni
+      const daySeparators = [];
+      const dayRanges = [];
+      let prevDay = labels[0].getDate();
+      let dayStart = 0;
+      
+      labels.forEach((dt, i) => {
+        if (dt.getDate() !== prevDay) {
+          daySeparators.push(i);
+          dayRanges.push({ start: dayStart, end: i - 1, date: labels[dayStart] });
+          dayStart = i;
+          prevDay = dt.getDate();
+        }
+      });
+      dayRanges.push({ start: dayStart, end: labels.length - 1, date: labels[dayStart] });
+      
+      // Crea etichette giorni con icona meteo prevalente
+      const dayLabelsContainer = document.getElementById(dayLabelsId);
+      dayRanges.forEach(range => {
+        const div = document.createElement('div');
+        div.className = 'day-label';
+        const dayName = range.date.toLocaleDateString('it-IT', { weekday: 'long' });
+        const dayDate = range.date.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+        
+        // Trova il weather code più comune del giorno (ore 12:00 circa)
+        const midDayIndex = range.start + Math.floor((range.end - range.start) / 2);
+        const weatherCode = data.hourly.weather_code[midDayIndex];
+        const icon = getWeatherIcon(weatherCode);
+        
+        div.innerHTML = `
+          <span class="weather-icon">${icon}</span>
+          ${dayName}<br>
+          <small style="color: #7f8c8d;">${dayDate}</small>
+        `;
+        dayLabelsContainer.appendChild(div);
+      });
+      
+      // Crea grafico
+      const ctx = document.getElementById(chartId);
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels.map(d => d.toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'})),
+          datasets: [
+            {
+              type: 'bar',
+              label: 'Precipitazioni (mm)',
+              data: data.hourly.precipitation,
+              backgroundColor: 'rgba(52, 152, 219, 0.6)',
+              borderColor: 'rgba(52, 152, 219, 1)',
+              borderWidth: 1,
+              yAxisID: 'y1',
+              order: 2
+            },
+            {
+              type: 'line',
+              label: 'Temperatura (°C)',
+              data: data.hourly.temperature_2m,
+              borderColor: 'rgba(231, 76, 60, 1)',
+              backgroundColor: 'rgba(231, 76, 60, 0.1)',
+              borderWidth: 2,
+              fill: false,
+              tension: 0.3,
+              yAxisID: 'y',
+              order: 1,
+              pointRadius: 2,
+              pointHoverRadius: 5
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          plugins: {
+            legend: { 
+              display: true,
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 15
+              }
+            },
+            annotation: {
+              annotations: daySeparators.reduce((acc, idx) => {
+                acc[`day${idx}`] = {
+                  type: 'line',
+                  scaleID: 'x',
+                  value: idx - 0.5,
+                  borderColor: 'rgba(149, 165, 166, 0.5)',
+                  borderWidth: 2,
+                  borderDash: [5, 5]
+                };
+                return acc;
+              }, {})
+            },
+            tooltip: {
+              callbacks: {
+                title: function(context) {
+                  const index = context[0].dataIndex;
+                  return labels[index].toLocaleString('it-IT', { 
+                    weekday: 'short', 
+                    day: 'numeric', 
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  });
+                },
+                afterTitle: function(context) {
+                  const index = context[0].dataIndex;
+                  const weatherCode = data.hourly.weather_code[index];
+                  const icon = getWeatherIcon(weatherCode);
+                  const desc = getWeatherDescription(weatherCode);
+                  return `${icon} ${desc}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { 
+              ticks: { 
+                maxRotation: 90, 
+                minRotation: 45, 
+                autoSkip: true, 
+                maxTicksLimit: 24,
+                font: { size: 10 }
+              },
+              grid: { display: false }
+            },
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              title: {
+                display: true,
+                text: 'Temperatura (°C)',
+                color: 'rgba(231, 76, 60, 1)',
+                font: { weight: 'bold', size: 12 }
+              },
+              ticks: { color: 'rgba(231, 76, 60, 1)' }
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              title: {
+                display: true,
+                text: 'Precipitazioni (mm)',
+                color: 'rgba(52, 152, 219, 1)',
+                font: { weight: 'bold', size: 12 }
+              },
+              ticks: { color: 'rgba(52, 152, 219, 1)' },
+              grid: { drawOnChartArea: false },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+    
+    // Crea tutti i grafici
+    locationsData.forEach((location, index) => {
+      createChart(location, `chart${index + 1}`, `dayLabels${index + 1}`);
+    });
+  </script>
+</body>
+</html>
