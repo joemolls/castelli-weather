@@ -282,7 +282,61 @@
   <div class="last-update">
     📅 Pagina aggiornata: <span id="currentTime"></span>
   </div>
+ 
+  <!-- Segnala un problema -->
+  <div class="community-links" style="border: 2px solid #27ae60;">
+  <h3 style="color:#27ae60;">📢 Segnala Chiusure o Problemi ai Sentieri</h3>
   
+  <p style="font-size:15px; margin-bottom:15px;">
+    Hai trovato un sentiero <strong>chiuso, pericoloso o con alberi caduti?</strong><br>
+    Aiuta tutta la community MTB dei Castelli Romani.
+  </p>
+
+  <!-- Bottone Google Form -->
+  <div style="text-align:center; margin:20px 0;">
+    <a href="https://forms.gle/TLSmUMZ5nKHWzEf38" 
+       target="_blank"
+       style="
+         display:inline-block;
+         background:#27ae60;
+         color:white;
+         padding:15px 35px;
+         font-size:16px;
+         font-weight:bold;
+         border-radius:30px;
+         text-decoration:none;
+         box-shadow:0 4px 10px rgba(0,0,0,0.15);
+         transition:0.2s;
+       ">
+       📝 Compila la Segnalazione
+    </a>
+  </div>
+</div>
+
+<!-- Segnala un problema2 -->
+<div class="community-links" style="border: 2px solid #27ae60;">
+
+  <div class="link-grid">
+    <div class="link-item">
+      <a href="https://www.trailforks.com" target="_blank">
+        🚵 Segnala anche su Trailforks
+      </a>
+      <p>Crea un report sullo stato del sentiero (chiuso, fangoso, pericoloso)</p>
+    </div>
+      
+      <div class="link-item">
+        <a href="/cdn-cgi/l/email-protection#cda4a3aba28dbdacbfaea2aeacbeb9a8a1a1a4bfa2a0aca3a4e3a4b9">📧 Email all'Ente Parco</a>
+        <p><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="355c5b535a75455447565a565446415059595c475a58545b5c1b5c41">[email&#160;protected]</a> - Per segnalare problemi ufficialmente</p>
+      </div>
+      
+      <div class="link-item">
+        <a href="tel:069499035">📞 Carabinieri Forestali</a>
+        <p>06 9499035 - Per emergenze o segnalazioni urgenti</p>
+      </div>
+    </div>
+  </div>
+
+ 
   <!-- Info Box -->
   <div class="info-box">
     <h3>ℹ️ Come funziona questa pagina</h3>
@@ -310,12 +364,6 @@
     <p>In caso di incendio boschivo: <span class="emergency-number">1515</span></p>
   </div>
   
-  <!-- Avvisi Attivi (se presenti) -->
-  {% if alerts %}
-  <div class="section-title">
-    <h2>🔔 Avvisi e Promemoria</h2>
-  </div>
-  
   <div class="alerts-container">
     {% for alert in alerts %}
     <div class="alert-card {{ alert.priority }}">
@@ -331,81 +379,12 @@
     </div>
     {% endfor %}
   </div>
-  {% endif %}
   
   <!-- Link Utili - Fonti Ufficiali -->
   <div class="section-title">
     <h2>🔗 Fonti Ufficiali da Controllare</h2>
   </div>
   
-  <div class="community-links">
-    <h3>📋 Controlli Essenziali Prima di Uscire:</h3>
-    <div class="link-grid">
-      <div class="link-item">
-        <a href="https://www.parcocastelliromani.it" target="_blank">🏛️ Parco Castelli Romani</a>
-        <p>Ordinanze ufficiali, chiusure temporanee sentieri, comunicazioni dell'Ente Parco</p>
-      </div>
-      
-      <div class="link-item">
-        <a href="https://www.trailforks.com/region/castelli-romani/" target="_blank">🚵 Trailforks</a>
-        <p>Stato sentieri aggiornato in tempo reale dalla community MTB</p>
-      </div>
-      
-      <div class="link-item">
-        <a href="http://www.regione.lazio.it/protezione_civile" target="_blank">🚨 Protezione Civile Lazio</a>
-        <p>Allerte meteo, bollettini criticità, divieti accesso boschi per rischio incendi</p>
-      </div>
-      
-      <div class="link-item">
-        <a href="https://www.comune.roccadipapa.rm.it/albo-pretorio" target="_blank">📜 Albo Pretorio Rocca di Papa</a>
-        <p>Ordinanze comunali e autorizzazioni tagli boschivi</p>
-      </div>
-      
-      <div class="link-item">
-        <a href="https://www.comune.grottaferrata.rm.it/albo-pretorio" target="_blank">📜 Albo Pretorio Grottaferrata</a>
-        <p>Ordinanze e comunicazioni del Comune di Grottaferrata</p>
-      </div>
-      
-      <div class="link-item">
-        <a href="https://www.comune.frascati.rm.it/albo-pretorio" target="_blank">📜 Albo Pretorio Frascati</a>
-        <p>Ordinanze e comunicazioni del Comune di Frascati</p>
-      </div>
-      
-      <div class="link-item">
-        <a href="https://www.comune.albanolaziale.rm.it/albo-pretorio" target="_blank">📜 Albo Pretorio Albano Laziale</a>
-        <p>Ordinanze e comunicazioni del Comune di Albano</p>
-      </div>
-      
-      <div class="link-item">
-        <a href="https://www.facebook.com/groups/mtbcastelliromani" target="_blank">👥 Facebook MTB Castelli</a>
-        <p>Segnalazioni in tempo reale, report condizioni, gruppo community</p>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Segnala un problema -->
-  <div class="community-links">
-    <h3>📢 Segnala Chiusure o Problemi ai Sentieri</h3>
-    <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 15px;">
-      Hai trovato un sentiero chiuso, pericoloso o con alberi caduti? Segnalalo alla community per aiutare gli altri biker:
-    </p>
-    <div class="link-grid">
-      <div class="link-item">
-        <a href="https://www.trailforks.com" target="_blank">Segnala su Trailforks</a>
-        <p>Crea un report sullo stato del sentiero (chiuso, fangoso, pericoloso)</p>
-      </div>
-      
-      <div class="link-item">
-        <a href="/cdn-cgi/l/email-protection#cda4a3aba28dbdacbfaea2aeacbeb9a8a1a1a4bfa2a0aca3a4e3a4b9">📧 Email all'Ente Parco</a>
-        <p><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="355c5b535a75455447565a565446415059595c475a58545b5c1b5c41">[email&#160;protected]</a> - Per segnalare problemi ufficialmente</p>
-      </div>
-      
-      <div class="link-item">
-        <a href="tel:069499035">📞 Carabinieri Forestali</a>
-        <p>06 9499035 - Per emergenze o segnalazioni urgenti</p>
-      </div>
-    </div>
-  </div>
   
   <!-- Cerca negli Albi Pretori -->
   <div class="community-links">
