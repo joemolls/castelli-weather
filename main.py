@@ -132,6 +132,10 @@ def find_best_riding_windows(hourly_data):
         if hour_code in [95, 96, 99]:
             hour_score -= 60
         
+        # Skip ore notturne (prima delle 7:00 e dopo le 20:00)
+        if time_obj.hour < 7 or time_obj.hour >= 20:
+            continue
+            
         hours_by_day[day_key].append({
             "time": time_obj,
             "hour": time_obj.hour,
@@ -170,6 +174,10 @@ def find_best_riding_windows(hourly_data):
                         "precip": max_precip
                     }
         
+        # Se il punteggio è troppo basso, skip questo giorno
+        if best_window and best_window['score'] < 50:
+            continue
+            
         if best_window:
             # Determina rating
             if best_window['score'] >= 80:
