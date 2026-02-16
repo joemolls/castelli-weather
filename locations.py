@@ -15,12 +15,12 @@ LOCATIONS = {
         "name": "Maschio d'Artemisio",
         "lat": 41.717,
         "lon": 12.750,
-        "elevation": 812
+        "elevation": 891
     },
     "fontana-tempesta": {
         "name": "Fontana Tempesta",
         "lat": 41.760,
         "lon": 12.730,
-        "elevation": 750
+        "elevation": 606
     }
 }
