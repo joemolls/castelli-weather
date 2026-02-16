@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from locations import LOCATIONS
 from weather_client import fetch_weather
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = FastAPI(title="Castelli Weather API")
 templates = Jinja2Templates(directory="templates")
@@ -99,53 +99,112 @@ def calculate_trail_conditions(hourly_data):
     }
 
 def find_best_riding_windows(hourly_data):
-    """Trova le migliori finestre orarie per uscire oggi"""
-    windows = []
+    """Trova le migliori finestre di 4-6h per uscite XCM nei prossimi 3 giorni"""
+    now = datetime.now()
+    daily_windows = []
     
-    # Analizza le prossime 12 ore (oggi)
-    for i in range(min(12, len(hourly_data['time']))):
+    # Raggruppa ore per giorno
+    hours_by_day = {}
+    for i, time_str in enumerate(hourly_data['time']):
+        time_obj = datetime.fromisoformat(time_str)
+        
+        # Skip ore già passate
+        if time_obj <= now:
+            continue
+            
+        day_key = time_obj.date()
+        if day_key not in hours_by_day:
+            hours_by_day[day_key] = []
+        
+        # Calcola score per quest'ora
         hour_temp = hourly_data['temperature_2m'][i]
         hour_precip = hourly_data['precipitation'][i]
         hour_wind = hourly_data['windspeed_10m'][i]
         hour_code = hourly_data['weather_code'][i]
         
-        # Score per quest'ora
         hour_score = 100
         if hour_precip > 0.5:
-            hour_score -= 50  # Pioggia
+            hour_score -= 50
         if hour_wind > 25:
-            hour_score -= 30  # Vento forte
+            hour_score -= 30
         if hour_temp < 3:
-            hour_score -= 20  # Freddo
-        if hour_code in [95, 96, 99]:  # Temporale
+            hour_score -= 20
+        if hour_code in [95, 96, 99]:
             hour_score -= 60
         
-        # Orario
-        time_obj = datetime.fromisoformat(hourly_data['time'][i])
-        hour_str = time_obj.strftime("%H:%M")
-        
-        windows.append({
-            "time": hour_str,
+        hours_by_day[day_key].append({
+            "time": time_obj,
+            "hour": time_obj.hour,
             "score": hour_score,
             "temp": hour_temp,
             "wind": hour_wind,
             "precip": hour_precip
         })
     
-    # Trova la finestra migliore
-    best_windows = sorted(windows, key=lambda x: x['score'], reverse=True)[:3]
+    # Per ogni giorno, trova le migliori finestre di 4-6h
+    for day, hours in sorted(hours_by_day.items())[:3]:  # Max 3 giorni
+        if len(hours) < 4:
+            continue
+        
+        # Cerca finestre consecutive di 4-6h con score medio alto
+        best_window = None
+        best_avg_score = 0
+        
+        for window_size in [6, 5, 4]:  # Prova prima 6h, poi 5h, poi 4h
+            for start_idx in range(len(hours) - window_size + 1):
+                window = hours[start_idx:start_idx + window_size]
+                avg_score = sum(h['score'] for h in window) / len(window)
+                avg_temp = sum(h['temp'] for h in window) / len(window)
+                avg_wind = sum(h['wind'] for h in window) / len(window)
+                max_precip = max(h['precip'] for h in window)
+                
+                if avg_score > best_avg_score:
+                    best_avg_score = avg_score
+                    best_window = {
+                        "start": window[0]['time'],
+                        "end": window[-1]['time'],
+                        "duration": window_size,
+                        "score": avg_score,
+                        "temp": avg_temp,
+                        "wind": avg_wind,
+                        "precip": max_precip
+                    }
+        
+        if best_window:
+            # Determina rating
+            if best_window['score'] >= 80:
+                rating = "excellent"
+                rating_icon = "🟢"
+            elif best_window['score'] >= 60:
+                rating = "good"
+                rating_icon = "🟡"
+            else:
+                rating = "poor"
+                rating_icon = "🔴"
+            
+            # Nome del giorno
+            if day == now.date():
+                day_name = "Oggi"
+            elif day == (now + timedelta(days=1)).date():
+                day_name = "Domani"
+            else:
+                day_name = day.strftime("%a %d %b")
+            
+            daily_windows.append({
+                "day": day_name,
+                "date": day.strftime("%d %b"),
+                "start_time": best_window['start'].strftime("%H:%M"),
+                "end_time": best_window['end'].strftime("%H:%M"),
+                "duration": best_window['duration'],
+                "rating": rating,
+                "rating_icon": rating_icon,
+                "temp": best_window['temp'],
+                "wind": best_window['wind'],
+                "precip": best_window['precip'],
+                "score": best_window['score']
+            })
     
-    if best_windows[0]['score'] >= 70:
-        recommendation = f"✅ Ottimo tra le {best_windows[0]['time']} e le {best_windows[2]['time']}"
-    elif best_windows[0]['score'] >= 50:
-        recommendation = f"⚠️ Accettabile tra le {best_windows[0]['time']} e le {best_windows[1]['time']}"
-    else:
-        recommendation = "❌ Oggi sconsigliato, attendi condizioni migliori"
-    
-    return {
-        "windows": best_windows,
-        "recommendation": recommendation
-    }
+    return daily_windows
 
 @app.get("/")
 def root():

@@ -19,117 +19,142 @@
     .subtitle {
       text-align: center;
       color: #7f8c8d;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
       font-size: 14px;
     }
     
-    /* MTB Conditions Card */
-    .mtb-info {
+    /* MTB Info - Layout compatto su una riga */
+    .mtb-compact {
       max-width: 1000px;
       margin: 20px auto;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-    
-    .info-card {
       background: white;
       border-radius: 8px;
       padding: 20px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: grid;
+      grid-template-columns: 1fr 1fr 2fr;
+      gap: 20px;
+      align-items: start;
     }
     
-    .info-card h3 {
-      margin-top: 0;
+    .compact-section {
+      padding: 0;
+    }
+    
+    .compact-section h3 {
+      margin: 0 0 12px 0;
       color: #2c3e50;
-      font-size: 18px;
+      font-size: 16px;
       border-bottom: 2px solid #3498db;
-      padding-bottom: 10px;
+      padding-bottom: 8px;
     }
     
-    .trail-score {
+    .trail-score-compact {
       text-align: center;
-      padding: 20px;
-      border-radius: 8px;
-      margin: 15px 0;
-      font-size: 24px;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 18px;
       font-weight: bold;
+      margin-bottom: 8px;
     }
     
-    .trail-score.excellent {
+    .trail-score-compact.excellent {
       background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
       color: white;
     }
     
-    .trail-score.good {
+    .trail-score-compact.good {
       background: linear-gradient(135deg, #f7b733 0%, #fc4a1a 100%);
       color: white;
     }
     
-    .trail-score.poor {
+    .trail-score-compact.poor {
       background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
       color: white;
     }
     
-    .condition-list {
+    .condition-list-compact {
       list-style: none;
       padding: 0;
-      margin: 15px 0;
+      margin: 8px 0 0 0;
+      font-size: 13px;
     }
     
-    .condition-list li {
-      padding: 8px 0;
-      border-bottom: 1px solid #ecf0f1;
+    .condition-list-compact li {
+      padding: 4px 0;
     }
     
-    .wind-info {
+    .wind-compact {
       display: flex;
-      justify-content: space-around;
-      margin: 15px 0;
-      text-align: center;
+      gap: 10px;
+      margin-top: 8px;
     }
     
-    .wind-box {
+    .wind-box-compact {
       flex: 1;
-      padding: 15px;
+      text-align: center;
       background: #f8f9fa;
-      border-radius: 8px;
-      margin: 0 5px;
+      padding: 10px 8px;
+      border-radius: 6px;
     }
     
-    .wind-box .value {
-      font-size: 28px;
+    .wind-box-compact .value {
+      font-size: 20px;
       font-weight: bold;
       color: #3498db;
     }
     
-    .wind-box .label {
-      font-size: 12px;
+    .wind-box-compact .label {
+      font-size: 10px;
       color: #7f8c8d;
-      margin-top: 5px;
+      margin-top: 3px;
     }
     
-    .riding-windows {
-      margin: 15px 0;
+    .riding-windows-compact {
+      margin-top: 8px;
     }
     
-    .window-recommendation {
-      background: #3498db;
-      color: white;
-      padding: 15px;
-      border-radius: 8px;
-      text-align: center;
-      font-size: 16px;
-      margin-bottom: 15px;
+    .day-window {
+      background: #f8f9fa;
+      padding: 10px 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border-left: 4px solid #3498db;
     }
     
-    .time-slot {
+    .day-window.excellent {
+      border-left-color: #56ab2f;
+    }
+    
+    .day-window.good {
+      border-left-color: #f7b733;
+    }
+    
+    .day-window.poor {
+      border-left-color: #eb3349;
+    }
+    
+    .day-window-header {
       display: flex;
       justify-content: space-between;
-      padding: 10px;
-      background: #f8f9fa;
-      border-radius: 5px;
-      margin: 5px 0;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    
+    .day-window-title {
+      font-weight: bold;
+      font-size: 14px;
+      color: #2c3e50;
+    }
+    
+    .day-window-time {
+      font-size: 13px;
+      color: #7f8c8d;
+    }
+    
+    .day-window-details {
+      font-size: 12px;
+      color: #7f8c8d;
     }
     
     .location-section {
@@ -207,14 +232,11 @@
     }
     
     @media (max-width: 768px) {
-      .mtb-info {
+      .mtb-compact {
         grid-template-columns: 1fr;
       }
-      .wind-info {
+      .wind-compact {
         flex-direction: column;
-      }
-      .wind-box {
-        margin: 5px 0;
       }
     }
   </style>
@@ -225,54 +247,62 @@
   <h1>🏔️ Castelli Romani - Meteo MTB</h1>
   <div class="subtitle">Previsioni a 72 ore + Condizioni Sentieri XCM</div>
   
-  <!-- MTB Info Cards -->
-  <div class="mtb-info">
-    <!-- Trail Conditions -->
-    <div class="info-card">
+  <!-- MTB Info Compact - Tutto su una riga -->
+  <div class="mtb-compact">
+    <!-- Condizioni Sentieri -->
+    <div class="compact-section">
       <h3>🚴‍♂️ Condizioni Sentieri</h3>
-      <div class="trail-score {{ trail_conditions.rating }}">
+      <div class="trail-score-compact {{ trail_conditions.rating }}">
         {{ trail_conditions.rating_emoji }} {{ trail_conditions.rating_text }}
       </div>
-      <ul class="condition-list">
-        {% for reason in trail_conditions.reasons %}
+      <ul class="condition-list-compact">
+        {% for reason in trail_conditions.reasons[:3] %}
         <li>{{ reason }}</li>
         {% endfor %}
       </ul>
     </div>
     
-    <!-- Wind Info -->
-    <div class="info-card">
+    <!-- Vento in Quota -->
+    <div class="compact-section">
       <h3>💨 Vento in Quota</h3>
-      <div class="wind-info">
-        <div class="wind-box">
+      <div class="wind-compact">
+        <div class="wind-box-compact">
           <div class="value">{{ trail_conditions.current_wind | round(0) | int }}</div>
-          <div class="label">km/h<br>Velocità</div>
+          <div class="label">km/h<br>Vento</div>
         </div>
-        <div class="wind-box">
+        <div class="wind-box-compact">
           <div class="value">{{ trail_conditions.current_gust | round(0) | int }}</div>
-          <div class="label">km/h<br>Raffiche</div>
+          <div class="label">km/h<br>Raffica</div>
         </div>
-        <div class="wind-box">
+        <div class="wind-box-compact">
           <div class="value">{{ trail_conditions.rain_24h | round(1) }}</div>
-          <div class="label">mm<br>Pioggia 24h</div>
+          <div class="label">mm<br>24h</div>
         </div>
       </div>
     </div>
-  </div>
-  
-  <!-- Riding Windows -->
-  <div class="info-card" style="max-width: 1000px; margin: 20px auto;">
-    <h3>⏰ Quando Uscire Oggi</h3>
-    <div class="window-recommendation">
-      {{ riding_windows.recommendation }}
-    </div>
-    <div class="riding-windows">
-      {% for window in riding_windows.windows[:3] %}
-      <div class="time-slot">
-        <span><strong>{{ window.time }}</strong></span>
-        <span>🌡️ {{ window.temp | round(0) }}°C | 💨 {{ window.wind | round(0) }} km/h | 💧 {{ window.precip | round(1) }}mm</span>
+    
+    <!-- Quando Uscire -->
+    <div class="compact-section">
+      <h3>⏰ Quando uscire?</h3>
+      <div class="riding-windows-compact">
+        {% for window in riding_windows %}
+        <div class="day-window {{ window.rating }}">
+          <div class="day-window-header">
+            <span class="day-window-title">{{ window.rating_icon }} {{ window.day }}</span>
+            <span class="day-window-time">{{ window.start_time }}-{{ window.end_time }} ({{ window.duration }}h)</span>
+          </div>
+          <div class="day-window-details">
+            🌡️ {{ window.temp | round(0) }}°C · 💨 {{ window.wind | round(0) }} km/h · 💧 {{ window.precip | round(1) }}mm
+          </div>
+        </div>
+        {% endfor %}
+        {% if riding_windows|length == 0 %}
+        <div class="day-window poor">
+          <div class="day-window-title">🔴 Nessuna finestra ideale</div>
+          <div class="day-window-details">Condizioni non favorevoli per XCM</div>
+        </div>
+        {% endif %}
       </div>
-      {% endfor %}
     </div>
   </div>
   
@@ -292,7 +322,7 @@
   </div>
   {% endfor %}
   
-  <footer>
+ <footer>
     <h3>📊 Fonti dei Dati</h3>
     <div class="data-source">
       <strong>Dati meteorologici:</strong> 
@@ -310,10 +340,12 @@
     <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ecf0f1; font-size: 12px;">
       I dati sono aggiornati in tempo reale e provengono da modelli meteorologici pubblici. 
       Per maggiori informazioni visita <a href="https://open-meteo.com/" target="_blank">open-meteo.com</a>
-      Test App by G.Mollo</a>
     </div>
-  </footer>
-  
+    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ecf0f1; font-size: 12px; color: #95a5a6;">
+      Test App by <strong style="color: #2c3e50;">G.Mollo</strong>
+    </div>
+  </footer> 
+
   <script>
     const locationsData = {{ locations_data | tojson }};
     
