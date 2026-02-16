@@ -8,6 +8,17 @@ from datetime import datetime
 app = FastAPI(title="Castelli Weather API")
 templates = Jinja2Templates(directory="templates")
 
+# Health check endpoints per UptimeRobot
+@app.head("/")
+async def head_root():
+    """Health check endpoint per UptimeRobot"""
+    return {}
+
+@app.head("/dashboard-completa")
+async def head_dashboard():
+    """Health check endpoint per UptimeRobot"""
+    return {}
+
 def calculate_trail_conditions(hourly_data):
     """Calcola le condizioni dei sentieri per MTB"""
     current_hour = 0

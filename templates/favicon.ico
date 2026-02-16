@@ -1,0 +1,5 @@
+from fastapi.responses import FileResponse
+
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse("templates/favicon.ico")
