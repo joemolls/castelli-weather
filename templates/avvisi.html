@@ -358,21 +358,48 @@
     {% endif %}
   </div>
 
-  <!-- 2. WORK IN PROGRESS -->
-  <div class="section-box">
-    <h3>🚧 Integrazioni in Sviluppo</h3>
-    <div class="wip-grid">
-      <div class="wip-item">
-        <div class="icon">🚵</div>
-        <div class="title">Trailforks</div>
-        <div class="status">Work In Progress</div>
-      </div>
-      <div class="wip-item">
-        <div class="icon">📊</div>
-        <div class="title">STRAVA</div>
-        <div class="status">Work In Progress</div>
+  
+  <!-- 2.5 STRAVA TEAM ACTIVITY -->
+  <div class="section-box" style="border-left: 4px solid #FC4C02;">
+    <h3 style="color: #FC4C02;">📊 Strava - Club MTB Castelli Romani</h3>
+    
+    <!-- Info Club -->
+    {% if strava_club_info %}
+    <div style="background: #fff8f0; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <strong style="font-size: 16px; color: #FC4C02;">{{ strava_club_info.name }}</strong>
+          <div style="font-size: 13px; color: #7f8c8d; margin-top: 3px;">
+            👥 {{ strava_club_info.member_count }} membri
+            {% if strava_club_info.city %} • 📍 {{ strava_club_info.city }}{% endif %}
+          </div>
+        </div>
+        <a href="https://www.strava.com/clubs/1433598" target="_blank" 
+           style="background: #FC4C02; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-size: 12px; font-weight: bold;">
+          Vedi su Strava →
+        </a>
       </div>
     </div>
+    {% endif %}
+    
+    <!-- Ultime Attività del Club (TUTTE - per test) -->
+    {% if strava_all_activities and strava_all_activities|length > 0 %}
+    <div style="margin-top: 15px;">
+      <h4 style="margin: 0 0 12px 0; color: #2c3e50; font-size: 15px;">🚴 Ultime Uscite del Team</h4>
+      <p style="font-size: 12px; color: #7f8c8d; margin-bottom: 10px;">
+        ⓘ L'API Strava per i club non fornisce date né coordinate GPS precise
+      </p>
+      {% for activity in strava_all_activities %}
+      <div style="background: #f8f9fa; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #FC4C02;">
+        <div style="font-weight: bold; color: #2c3e50; font-size: 14px;">{{ activity.athlete_name }}</div>
+        <div style="font-size: 13px; color: #555; margin: 3px 0;">{{ activity.name }}</div>
+        <div style="font-size: 12px; color: #7f8c8d;">
+          📏 {{ activity.distance_km }}km • ⛰️ {{ activity.elevation_gain }}m • ⏱️ {{ activity.moving_time }}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
   
   <!-- 3. NUMERI EMERGENZA - RIDOTTO -->
@@ -383,6 +410,18 @@
        Forestali Rocca di Papa: <strong>06 9499035</strong></p>
   </div>
   
+  <!-- 2. WORK IN PROGRESS -->
+  <div class="section-box">
+    <h3>🚧 Integrazioni in Sviluppo</h3>
+    <div class="wip-grid">
+      <div class="wip-item">
+        <div class="icon">🚵</div>
+        <div class="title">Trailforks</div>
+        <div class="status">Work In Progress</div>
+      </div>
+    </div>
+  </div>
+
   <!-- 4. FONTI UFFICIALI -->
   <div class="section-title">
     <h2>🔗 Fonti Ufficiali da Controllare</h2>
@@ -405,12 +444,8 @@
     <h3>📞 Contatti Diretti</h3>
     <div class="links-grid">
       <div class="link-item">
-        <a href="/cdn-cgi/l/email-protection#c0a9aea6af80b0a1b2a3afa3a1b3b4a5acaca9b2afada1aea9eea9b4">📧 Email Ente Parco</a>
-        <p><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="51383f373e11213023323e32302225343d3d38233e3c303f387f3825">[email&#160;protected]</a> - Per segnalazioni ufficiali</p>
-      </div>
-      <div class="link-item">
-        <a href="tel:069499035">☎️ Carabinieri Forestali</a>
-        <p>06 9499035 - Rocca di Papa</p>
+        <a href="/cdn-cgi/l/email-protection#8ae3e4ece5cafaebf8e9e5e9ebf9feefe6e6e3f8e5e7ebe4e3a4e3fe">📧 Email Ente Parco</a>
+        <p><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="bcd5d2dad3fcccddcedfd3dfddcfc8d9d0d0d5ced3d1ddd2d592d5c8">[email&#160;protected]</a> - Per segnalazioni ufficiali</p>
       </div>
     </div>
   </div>
@@ -451,22 +486,4 @@
     <a href="/" class="back-button">← Torna alle Previsioni Meteo</a>
   </div>
   
-  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
-    // Mostra l'ora corrente
-    const now = new Date();
-    cons
-  <script>
-    // Mostra l'ora corrente
-    const now = new Date();
-    const timeString = now.toLocaleString('it-IT', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    document.getElementById('currentTime').textContent = timeString;
-  </script>
-</body>
-</html>
+  <s
