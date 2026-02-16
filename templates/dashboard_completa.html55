@@ -8,17 +8,17 @@
     body { 
       font-family: Arial, sans-serif; 
       margin: 0;
-      padding: 15px; 
+      padding: 20px; 
       background-color: #ecf0f1;
     }
     
     .title-container {
       max-width: 1000px;
-      margin: 0 auto 8px auto;
+      margin: 0 auto 10px auto;
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 15px;
+      gap: 20px;
       flex-wrap: wrap;
     }
     
@@ -63,14 +63,14 @@
     /* MTB Info - Layout compatto su una riga */
     .mtb-compact {
       max-width: 1000px;
-      margin: 15px auto;
+      margin: 20px auto;
       background: white;
       border-radius: 8px;
-      padding: 12px;
+      padding: 20px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       display: grid;
       grid-template-columns: 1fr 1fr 2fr;
-      gap: 15px;
+      gap: 20px;
       align-items: start;
     }
     
@@ -79,20 +79,20 @@
     }
     
     .compact-section h3 {
-      margin: 0 0 8px 0;
+      margin: 0 0 12px 0;
       color: #2c3e50;
-      font-size: 15px;
+      font-size: 16px;
       border-bottom: 2px solid #3498db;
-      padding-bottom: 6px;
+      padding-bottom: 8px;
     }
     
     .trail-score-compact {
       text-align: center;
-      padding: 10px;
+      padding: 12px;
       border-radius: 6px;
-      font-size: 16px;
+      font-size: 18px;
       font-weight: bold;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     
     .trail-score-compact.excellent {
@@ -113,49 +113,49 @@
     .condition-list-compact {
       list-style: none;
       padding: 0;
-      margin: 6px 0 0 0;
-      font-size: 12px;
+      margin: 8px 0 0 0;
+      font-size: 13px;
     }
     
     .condition-list-compact li {
-      padding: 3px 0;
+      padding: 4px 0;
     }
     
     .wind-compact {
       display: flex;
-      gap: 8px;
-      margin-top: 6px;
+      gap: 10px;
+      margin-top: 8px;
     }
     
     .wind-box-compact {
       flex: 1;
       text-align: center;
       background: #f8f9fa;
-      padding: 8px 6px;
+      padding: 10px 8px;
       border-radius: 6px;
     }
     
     .wind-box-compact .value {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: bold;
       color: #3498db;
     }
     
     .wind-box-compact .label {
-      font-size: 9px;
+      font-size: 10px;
       color: #7f8c8d;
-      margin-top: 2px;
+      margin-top: 3px;
     }
     
     .riding-windows-compact {
-      margin-top: 6px;
+      margin-top: 8px;
     }
     
     .day-window {
       background: #f8f9fa;
-      padding: 8px 10px;
+      padding: 10px 12px;
       border-radius: 6px;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       border-left: 4px solid #3498db;
     }
     
@@ -196,7 +196,7 @@
     
     .location-section {
       max-width: 1000px;
-      margin: 15px auto;
+      margin: 30px auto;
       background: white;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -205,58 +205,57 @@
     .location-header {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      padding: 12px 15px;
+      padding: 15px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
     .location-name {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: bold;
     }
     .location-elevation {
-      font-size: 13px;
+      font-size: 14px;
       opacity: 0.9;
     }
     .day-labels { 
       display: flex; 
-      padding: 12px 15px;
+      padding: 15px 20px;
       border-bottom: 2px solid #3498db;
       background: #f8f9fa;
     }
     .day-label { 
       font-weight: bold; 
-      font-size: 14px;
+      font-size: 15px;
       color: #2c3e50;
       text-align: center;
       flex: 1;
       text-transform: capitalize;
     }
     .weather-icon {
-      font-size: 22px;
+      font-size: 24px;
       display: block;
-      margin: 3px 0;
+      margin: 5px 0;
     }
     .chart-container {
-      padding: 15px;
-      height: 280px;
+      padding: 20px;
     }
     footer {
       max-width: 1000px;
-      margin: 30px auto 15px auto;
-      padding: 15px;
+      margin: 50px auto 20px auto;
+      padding: 20px;
       background: white;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
       text-align: center;
       color: #7f8c8d;
-      font-size: 13px;
-      line-height: 1.5;
+      font-size: 14px;
+      line-height: 1.6;
     }
     footer h3 {
       color: #2c3e50;
-      margin-bottom: 12px;
-      font-size: 15px;
+      margin-bottom: 15px;
+      font-size: 16px;
     }
     footer a {
       color: #3498db;
@@ -271,23 +270,23 @@
     .update-info-box {
       background: #f8f9fa;
       border-left: 4px solid #3498db;
-      padding: 12px;
-      margin: 15px 0;
+      padding: 15px;
+      margin: 20px 0;
       text-align: left;
       border-radius: 4px;
     }
     .update-info-box h4 {
-      margin: 0 0 8px 0;
+      margin: 0 0 10px 0;
       color: #2c3e50;
-      font-size: 14px;
+      font-size: 15px;
     }
     .update-info-box ul {
-      margin: 4px 0;
-      padding-left: 18px;
+      margin: 5px 0;
+      padding-left: 20px;
     }
     .update-info-box li {
-      margin: 4px 0;
-      font-size: 12px;
+      margin: 5px 0;
+      font-size: 13px;
     }
     
     @media (max-width: 768px) {
@@ -569,14 +568,14 @@
           type: 'line',
           scaleID: 'y1',
           value: 5,
-          borderColor: 'rgba(52, 152, 219, 0.35)',
+          borderColor: 'rgba(52, 152, 219, 0.9)',
           borderWidth: 2,
           borderDash: [8, 4],
           label: {
             display: true,
-            content: '⚠️ Fango se >5mm',
+            content: '⚠️ Fango serio (>5mm)',
             position: 'end',
-            backgroundColor: 'rgba(52, 152, 219, 0.35)',
+            backgroundColor: 'rgba(52, 152, 219, 0.9)',
             color: 'white',
             font: {
               size: 10,
@@ -635,7 +634,7 @@
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false,
+          maintainAspectRatio: true,
           interaction: { mode: 'index', intersect: false },
           plugins: {
             legend: { display: true, position: 'top', labels: { usePointStyle: true, padding: 15 } },

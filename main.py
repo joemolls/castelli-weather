@@ -5,6 +5,8 @@ from locations import LOCATIONS
 from weather_client import fetch_weather
 from scraper import get_all_alerts
 from datetime import datetime, timedelta
+import csv
+import httpx
 
 app = FastAPI(title="Castelli Weather API")
 templates = Jinja2Templates(directory="templates")
@@ -197,7 +199,6 @@ def find_best_riding_windows(hourly_data):
             elif day == (now + timedelta(days=1)).date():
                 day_name = "Domani"
             else:
-                #day_name = day.strftime("%a %d %b")
                 # Giorni della settimana in italiano
                 giorni_it = {
                     'Mon': 'Lun', 'Tue': 'Mar', 'Wed': 'Mer', 
@@ -223,6 +224,95 @@ def find_best_riding_windows(hourly_data):
             })
     
     return daily_windows
+
+async def fetch_form_feedbacks():
+    """Recupera i feedback dal Google Sheet pubblicato come CSV"""
+    csv_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRdLrCbwcB8E9zjahAbON9zAHQJKH6_PHONk40EGhhzrF23jX0NA8oLd3xIk-Hj98-ZLq2CnST_Fpzq/pub?gid=2136983056&single=true&output=csv"
+    
+    try:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            response = await client.get(csv_url, timeout=10.0)
+            response.raise_for_status()
+            
+            # Parse CSV
+            lines = response.text.strip().split('\n')
+            if len(lines) < 2:  # No data
+                return []
+            
+            reader = csv.DictReader(lines)
+            feedbacks = []
+            now = datetime.now()
+            
+            for row in reader:
+                # Gestisce caratteri UTF-8 strani nel CSV
+                cols = list(row.keys())
+                
+                # Trova colonne per similarità (gestisce encoding issues)
+                timestamp_col = next((c for c in cols if 'Informazioni' in c or 'cronolog' in c), cols[0] if cols else '')
+                location_col = next((c for c in cols if 'Sentiero' in c or 'Localit' in c), cols[1] if len(cols) > 1 else '')
+                condition_col = next((c for c in cols if 'Condizione' in c), cols[2] if len(cols) > 2 else '')
+                date_col = next((c for c in cols if 'Data' in c), cols[3] if len(cols) > 3 else '')
+                details_col = next((c for c in cols if 'Dettagli' in c), cols[4] if len(cols) > 4 else '')
+                
+                timestamp = row.get(timestamp_col, "")
+                location = row.get(location_col, "")
+                condition = row.get(condition_col, "")
+                report_date = row.get(date_col, "")
+                details = row.get(details_col, "")
+                
+                if not location or not location.strip():  # Skip righe vuote
+                    continue
+                
+                # Calcola "quanto tempo fa"
+                time_ago = "Ora sconosciuta"
+                if timestamp:
+                    try:
+                        # Prova formato con punti: 16/02/2026 15.33.23
+                        dt = datetime.strptime(timestamp.replace('.', ':'), "%d/%m/%Y %H:%M:%S")
+                        diff = now - dt
+                        
+                        if diff.days == 0:
+                            hours = diff.seconds // 3600
+                            if hours == 0:
+                                mins = diff.seconds // 60
+                                if mins < 5:
+                                    time_ago = "Pochi minuti fa"
+                                else:
+                                    time_ago = f"{mins} minuti fa"
+                            elif hours == 1:
+                                time_ago = "1 ora fa"
+                            else:
+                                time_ago = f"{hours} ore fa"
+                        elif diff.days == 1:
+                            time_ago = "Ieri"
+                        elif diff.days < 7:
+                            time_ago = f"{diff.days} giorni fa"
+                        else:
+                            time_ago = dt.strftime("%d/%m/%Y")
+                    except Exception as e:
+                        print(f"Errore parsing data '{timestamp}': {e}")
+                        time_ago = timestamp
+                
+                # Combina condizione e dettagli
+                full_description = condition
+                if details and details.strip():
+                    full_description += f" - {details}"
+                
+                feedbacks.append({
+                    "location": location,
+                    "description": full_description,
+                    "date": time_ago,
+                    "timestamp": timestamp
+                })
+            
+            # Ritorna le ultime 10 segnalazioni (più recenti prima)
+            return feedbacks[::-1][:10] if feedbacks else []
+            
+    except Exception as e:
+        print(f"❌ Errore recupero feedbacks: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
 
 @app.get("/")
 def root():
@@ -318,10 +408,14 @@ async def avvisi(request: Request):
     # Recupera tutti gli avvisi
     alerts = await get_all_alerts()
     
+    # Recupera feedback dal Google Form
+    feedbacks = await fetch_form_feedbacks()
+    
     return templates.TemplateResponse(
         "avvisi.html",
         {
             "request": request,
-            "alerts": alerts
+            "alerts": alerts,
+            "feedbacks": feedbacks
         }
     )

@@ -8,35 +8,36 @@
     body { 
       font-family: Arial, sans-serif; 
       margin: 0;
-      padding: 20px; 
+      padding: 15px; 
       background-color: #ecf0f1;
     }
     
     .header {
       max-width: 1000px;
-      margin: 0 auto 20px auto;
+      margin: 0 auto 15px auto;
       text-align: center;
     }
     
     h1 { 
       color: #2c3e50;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     
     .subtitle {
       color: #7f8c8d;
       font-size: 14px;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
     
     .back-button {
       display: inline-block;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      padding: 12px 30px;
+      padding: 10px 25px;
       border-radius: 25px;
       text-decoration: none;
       font-weight: bold;
+      font-size: 14px;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
       transition: transform 0.2s;
     }
@@ -50,142 +51,168 @@
       text-align: center;
       color: #95a5a6;
       font-size: 12px;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
     }
     
-    .alerts-container {
+    .section-box {
       max-width: 1000px;
-      margin: 0 auto;
-    }
-    
-    .alert-card {
+      margin: 15px auto;
+      padding: 15px;
       background: white;
       border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 15px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      border-left: 5px solid #3498db;
-      transition: transform 0.2s;
     }
     
-    .alert-card:hover {
-      transform: translateX(5px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    .section-box.highlight {
+      border: 2px solid #27ae60;
     }
     
-    .alert-card.critical {
-      border-left-color: #e74c3c;
-      background: #ffebee;
+    .section-box h3 {
+      color: #2c3e50;
+      margin: 0 0 12px 0;
+      font-size: 18px;
     }
     
-    .alert-card.high {
-      border-left-color: #f39c12;
-      background: #fff8e1;
+    .section-box.highlight h3 {
+      color: #27ae60;
     }
     
-    .alert-card.info {
-      border-left-color: #3498db;
+    .section-box p {
+      margin: 8px 0;
+      font-size: 14px;
+      color: #555;
+      line-height: 1.5;
     }
     
-    .alert-header {
+    /* Form Button */
+    .form-button {
+      display: inline-block;
+      background: #27ae60;
+      color: white;
+      padding: 12px 30px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 30px;
+      text-decoration: none;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      transition: all 0.2s;
+      margin: 15px 0;
+    }
+    
+    .form-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+    }
+    
+    /* Feedback Cards */
+    .feedback-list {
+      margin-top: 20px;
+    }
+    
+    .feedback-card {
+      background: #f8f9fa;
+      border-left: 4px solid #27ae60;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+    }
+    
+    .feedback-header {
       display: flex;
       justify-content: space-between;
-      align-items: start;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     
-    .alert-title {
-      font-size: 18px;
+    .feedback-location {
       font-weight: bold;
       color: #2c3e50;
-      flex: 1;
-      margin-right: 15px;
+      font-size: 14px;
     }
     
-    .alert-date {
+    .feedback-date {
       font-size: 12px;
       color: #7f8c8d;
-      white-space: nowrap;
     }
     
-    .alert-source {
-      display: inline-block;
-      background: #3498db;
-      color: white;
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 11px;
-      margin-bottom: 10px;
-    }
-    
-    .alert-source.critical {
-      background: #e74c3c;
-    }
-    
-    .alert-source.high {
-      background: #f39c12;
-    }
-    
-    .alert-description {
+    .feedback-description {
+      font-size: 13px;
       color: #555;
-      font-size: 14px;
-      line-height: 1.6;
-      margin: 10px 0;
+      margin: 5px 0;
     }
     
-    .alert-link {
-      display: inline-block;
-      color: #3498db;
-      text-decoration: none;
-      font-size: 14px;
-      margin-top: 10px;
+    /* Work in Progress Items */
+    .wip-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    
+    .wip-item {
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border-left: 3px solid #95a5a6;
+      text-align: center;
+    }
+    
+    .wip-item .icon {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+    
+    .wip-item .title {
       font-weight: bold;
-    }
-    
-    .alert-link:hover {
-      text-decoration: underline;
-    }
-    
-    .section-title {
-      max-width: 1000px;
-      margin: 40px auto 20px auto;
-      padding: 15px 20px;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .section-title h2 {
-      margin: 0;
       color: #2c3e50;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+    
+    .wip-item .status {
+      font-size: 12px;
+      color: #95a5a6;
+      font-style: italic;
+    }
+    
+    /* Emergency Box - COMPATTO */
+    .emergency-box {
+      max-width: 1000px;
+      margin: 15px auto;
+      padding: 12px 15px;
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .emergency-box h3 {
+      color: #856404;
+      margin: 0 0 10px 0;
+      font-size: 16px;
+    }
+    
+    .emergency-box p {
+      color: #856404;
+      margin: 5px 0;
+      font-size: 13px;
+    }
+    
+    .emergency-number {
       font-size: 20px;
-      border-left: 4px solid #3498db;
-      padding-left: 15px;
+      font-weight: bold;
+      color: #e74c3c;
     }
     
-    .community-links {
-      max-width: 1000px;
-      margin: 20px auto;
-      padding: 20px;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    
-    .community-links h3 {
-      color: #2c3e50;
-      margin-bottom: 15px;
-    }
-    
-    .link-grid {
+    /* Links Grid */
+    .links-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 15px;
-      margin-top: 15px;
+      gap: 12px;
+      margin-top: 12px;
     }
     
     .link-item {
-      padding: 15px;
+      padding: 12px;
       background: #f8f9fa;
       border-radius: 6px;
       border-left: 3px solid #3498db;
@@ -195,6 +222,7 @@
       color: #3498db;
       text-decoration: none;
       font-weight: bold;
+      font-size: 14px;
       display: block;
       margin-bottom: 5px;
     }
@@ -205,41 +233,33 @@
     
     .link-item p {
       margin: 5px 0 0 0;
-      font-size: 13px;
+      font-size: 12px;
       color: #7f8c8d;
     }
     
-    .emergency-box {
+    /* Section Title */
+    .section-title {
       max-width: 1000px;
-      margin: 20px auto;
-      padding: 20px;
-      background: #fff3cd;
-      border: 2px solid #ffc107;
+      margin: 25px auto 15px auto;
+      padding: 12px 15px;
+      background: white;
       border-radius: 8px;
-      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    .emergency-box h3 {
-      color: #856404;
-      margin-top: 0;
+    .section-title h2 {
+      margin: 0;
+      color: #2c3e50;
+      font-size: 18px;
+      border-left: 4px solid #3498db;
+      padding-left: 12px;
     }
     
-    .emergency-box p {
-      color: #856404;
-      margin: 10px 0;
-    }
-    
-    .emergency-number {
-      font-size: 24px;
-      font-weight: bold;
-      color: #e74c3c;
-      margin: 10px 0;
-    }
-    
+    /* Info Box - Compatto */
     .info-box {
       max-width: 1000px;
-      margin: 20px auto;
-      padding: 20px;
+      margin: 15px auto;
+      padding: 15px;
       background: #e3f2fd;
       border-left: 4px solid #2196f3;
       border-radius: 8px;
@@ -247,27 +267,52 @@
     
     .info-box h3 {
       color: #1565c0;
-      margin-top: 0;
-      font-size: 18px;
+      margin: 0 0 10px 0;
+      font-size: 16px;
     }
     
     .info-box p {
       color: #424242;
-      line-height: 1.6;
-      margin: 10px 0;
+      line-height: 1.5;
+      margin: 8px 0;
+      font-size: 13px;
+    }
+    
+    .info-box ul {
+      margin: 8px 0;
+      padding-left: 20px;
+    }
+    
+    .info-box li {
+      margin: 5px 0;
+      font-size: 13px;
+      color: #424242;
+    }
+    
+    /* Keywords Box */
+    .keywords-box {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+    
+    .keywords-box strong {
+      color: #2c3e50;
+    }
+    
+    .keywords-box ul {
+      margin: 8px 0;
+      color: #555;
     }
     
     @media (max-width: 768px) {
-      .alert-header {
-        flex-direction: column;
-      }
-      
-      .alert-date {
-        margin-top: 5px;
-      }
-      
-      .link-grid {
+      .wip-grid, .links-grid {
         grid-template-columns: 1fr;
+      }
+      
+      .feedback-header {
+        flex-direction: column;
       }
     }
   </style>
@@ -275,7 +320,7 @@
 <body>
   <div class="header">
     <h1>🔗 Link Utili</h1>
-    <div class="subtitle">Castelli Romani - Fonti ufficiali da controllare prima di ogni uscita</div>
+    <div class="subtitle">Castelli Romani - Fonti ufficiali e segnalazioni community</div>
     <a href="/" class="back-button">← Torna alle Previsioni Meteo</a>
   </div>
   
@@ -283,118 +328,117 @@
     📅 Pagina aggiornata: <span id="currentTime"></span>
   </div>
  
-  <!-- Segnala un problema -->
-  <div class="community-links" style="border: 2px solid #27ae60;">
-  <h3 style="color:#27ae60;">📢 Segnala Chiusure o Problemi ai Sentieri</h3>
-  
-  <p style="font-size:15px; margin-bottom:15px;">
-    Hai trovato un sentiero <strong>chiuso, pericoloso o con alberi caduti?</strong><br>
-    Aiuta tutta la community MTB dei Castelli Romani.
-  </p>
-
-  <!-- Bottone Google Form -->
-  <div style="text-align:center; margin:20px 0;">
-    <a href="https://forms.gle/TLSmUMZ5nKHWzEf38" 
-       target="_blank"
-       style="
-         display:inline-block;
-         background:#27ae60;
-         color:white;
-         padding:15px 35px;
-         font-size:16px;
-         font-weight:bold;
-         border-radius:30px;
-         text-decoration:none;
-         box-shadow:0 4px 10px rgba(0,0,0,0.15);
-         transition:0.2s;
-       ">
-       📝 Compila la Segnalazione
-    </a>
-  </div>
-</div>
-
-<!-- Segnala un problema2 -->
-<div class="community-links" style="border: 2px solid #27ae60;">
-
-  <div class="link-grid">
-    <div class="link-item">
-      <a href="https://www.trailforks.com" target="_blank">
-        🚵 Segnala anche su Trailforks
+  <!-- 1. SEGNALA CHIUSURE -->
+  <div class="section-box highlight">
+    <h3>📢 Segnala Chiusure o Problemi ai Sentieri</h3>
+    <p>
+      Hai trovato un sentiero <strong>chiuso, pericoloso o con alberi caduti?</strong><br>
+      Aiuta tutta la community MTB dei Castelli Romani.
+    </p>
+    <div style="text-align:center;">
+      <a href="https://forms.gle/TLSmUMZ5nKHWzEf38" target="_blank" class="form-button">
+        📝 Compila la Segnalazione
       </a>
-      <p>Crea un report sullo stato del sentiero (chiuso, fangoso, pericoloso)</p>
     </div>
-      
-      <div class="link-item">
-        <a href="/cdn-cgi/l/email-protection#cda4a3aba28dbdacbfaea2aeacbeb9a8a1a1a4bfa2a0aca3a4e3a4b9">📧 Email all'Ente Parco</a>
-        <p><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="355c5b535a75455447565a565446415059595c475a58545b5c1b5c41">[email&#160;protected]</a> - Per segnalare problemi ufficialmente</p>
+    
+    <!-- FEEDBACK RICEVUTI -->
+    {% if feedbacks and feedbacks|length > 0 %}
+    <div class="feedback-list">
+      <h4 style="color:#27ae60; margin: 20px 0 12px 0; font-size: 16px;">📋 Ultime Segnalazioni Ricevute</h4>
+      {% for feedback in feedbacks[:5] %}
+      <div class="feedback-card">
+        <div class="feedback-header">
+          <span class="feedback-location">{{ feedback.location }}</span>
+          <span class="feedback-date">{{ feedback.date }}</span>
+        </div>
+        <div class="feedback-description">{{ feedback.description }}</div>
       </div>
-      
-      <div class="link-item">
-        <a href="tel:069499035">📞 Carabinieri Forestali</a>
-        <p>06 9499035 - Per emergenze o segnalazioni urgenti</p>
-      </div>
+      {% endfor %}
     </div>
+    {% endif %}
   </div>
 
- 
-  <!-- Info Box -->
-  <div class="info-box">
-    <h3>ℹ️ Come funziona questa pagina</h3>
-    <p>
-      Questa pagina raccoglie i <strong>link diretti alle fonti ufficiali</strong> dove vengono pubblicate 
-      ordinanze, chiusure sentieri e tagli boschivi. Non è possibile recuperare automaticamente queste informazioni 
-      perché vengono pubblicate su siti diversi e con formati variabili.
-    </p>
-    <p>
-      <strong>Prima di ogni uscita</strong>, ti consigliamo di controllare manualmente:
-    </p>
-    <ul style="text-align: left; color: #424242;">
-      <li>📋 Sito del Parco Castelli Romani (ordinanze ufficiali)</li>
-      <li>📜 Albi Pretori dei comuni (autorizzazioni tagli boschivi)</li>
-      <li>🚵 Trailforks (segnalazioni in tempo reale dalla community)</li>
-      <li>🚨 Protezione Civile Lazio (allerte meteo e divieti accesso boschi)</li>
-    </ul>
+  <!-- 2. WORK IN PROGRESS -->
+  <div class="section-box">
+    <h3>🚧 Integrazioni in Sviluppo</h3>
+    <div class="wip-grid">
+      <div class="wip-item">
+        <div class="icon">🚵</div>
+        <div class="title">Trailforks</div>
+        <div class="status">Work In Progress</div>
+      </div>
+      <div class="wip-item">
+        <div class="icon">📊</div>
+        <div class="title">STRAVA</div>
+        <div class="status">Work In Progress</div>
+      </div>
+    </div>
   </div>
   
-  <!-- Emergenze -->
+  <!-- 3. NUMERI EMERGENZA - RIDOTTO -->
   <div class="emergency-box">
     <h3>🚨 Numeri di Emergenza</h3>
-    <p>Soccorso Alpino e Speleologico: <span class="emergency-number">118</span></p>
-    <p>Carabinieri Forestali Rocca di Papa: <strong>06 9499035</strong></p>
-    <p>In caso di incendio boschivo: <span class="emergency-number">1515</span></p>
+    <p>Soccorso Alpino: <span class="emergency-number">118</span> • 
+       Incendi: <span class="emergency-number">1515</span> • 
+       Forestali Rocca di Papa: <strong>06 9499035</strong></p>
   </div>
   
-  <div class="alerts-container">
-    {% for alert in alerts %}
-    <div class="alert-card {{ alert.priority }}">
-      <span class="alert-source {{ alert.priority }}">{{ alert.source }}</span>
-      <div class="alert-header">
-        <div class="alert-title">{{ alert.title }}</div>
-        <div class="alert-date">{{ alert.date }}</div>
-      </div>
-      {% if alert.description %}
-      <div class="alert-description">{{ alert.description }}</div>
-      {% endif %}
-      <a href="{{ alert.link }}" target="_blank" class="alert-link">Vai alla fonte ufficiale →</a>
-    </div>
-    {% endfor %}
-  </div>
-  
-  <!-- Link Utili - Fonti Ufficiali -->
+  <!-- 4. FONTI UFFICIALI -->
   <div class="section-title">
     <h2>🔗 Fonti Ufficiali da Controllare</h2>
   </div>
   
+  <!-- 5. PARCO CASTELLI ROMANI -->
+  <div class="section-box">
+    <h3>🏞️ Parco Regionale dei Castelli Romani</h3>
+    <p>Sito ufficiale del Parco con ordinanze, divieti e comunicazioni ufficiali</p>
+    <div class="links-grid">
+      <div class="link-item">
+        <a href="https://www.parcocastelliromani.it" target="_blank">🌲 Sito Ufficiale Parco</a>
+        <p>Ordinanze e comunicazioni ufficiali</p>
+      </div>
+    </div>
+  </div>
   
-  <!-- Cerca negli Albi Pretori -->
-  <div class="community-links">
-    <h3>🔍 Come Cercare negli Albi Pretori</h3>
-    <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 15px;">
-      Gli albi pretori pubblicano ordinanze e autorizzazioni. Ecco alcune parole chiave utili da cercare:
+  <!-- 6. CONTATTI DIRETTI -->
+  <div class="section-box">
+    <h3>📞 Contatti Diretti</h3>
+    <div class="links-grid">
+      <div class="link-item">
+        <a href="/cdn-cgi/l/email-protection#c0a9aea6af80b0a1b2a3afa3a1b3b4a5acaca9b2afada1aea9eea9b4">📧 Email Ente Parco</a>
+        <p><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="51383f373e11213023323e32302225343d3d38233e3c303f387f3825">[email&#160;protected]</a> - Per segnalazioni ufficiali</p>
+      </div>
+      <div class="link-item">
+        <a href="tel:069499035">☎️ Carabinieri Forestali</a>
+        <p>06 9499035 - Rocca di Papa</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 7. COME FUNZIONA -->
+  <div class="info-box">
+    <h3>ℹ️ Come funziona questa pagina</h3>
+    <p>
+      Questa pagina raccoglie i <strong>link diretti alle fonti ufficiali</strong> dove vengono pubblicate 
+      ordinanze, chiusure sentieri e tagli boschivi.
     </p>
-    <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 10px;">
-      <strong>Parole chiave:</strong>
-      <ul style="margin: 10px 0; color: #555;">
+    <p>
+      <strong>Prima di ogni uscita</strong>, controlla:
+    </p>
+    <ul>
+      <li>📋 Sito del Parco Castelli Romani (ordinanze ufficiali)</li>
+      <li>📜 Albi Pretori dei comuni (autorizzazioni tagli boschivi)</li>
+      <li>📢 Segnalazioni community su questa pagina</li>
+    </ul>
+  </div>
+  
+  <!-- 8. CERCA NEGLI ALBI PRETORI -->
+  <div class="section-box">
+    <h3>🔍 Come Cercare negli Albi Pretori</h3>
+    <p>Gli albi pretori pubblicano ordinanze e autorizzazioni. Usa queste parole chiave:</p>
+    <div class="keywords-box">
+      <strong>Parole chiave utili:</strong>
+      <ul>
         <li>"taglio" o "utilizzazione boschiva" → per tagli programmati</li>
         <li>"chiusura sentiero" o "divieto transito" → per chiusure temporanee</li>
         <li>"ordinanza" → per provvedimenti ufficiali</li>
@@ -403,7 +447,7 @@
     </div>
   </div>
   
-  <div style="max-width: 1000px; margin: 40px auto; text-align: center;">
+  <div style="max-width: 1000px; margin: 30px auto; text-align: center;">
     <a href="/" class="back-button">← Torna alle Previsioni Meteo</a>
   </div>
   
@@ -411,3 +455,18 @@
     // Mostra l'ora corrente
     const now = new Date();
     cons
+  <script>
+    // Mostra l'ora corrente
+    const now = new Date();
+    const timeString = now.toLocaleString('it-IT', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    document.getElementById('currentTime').textContent = timeString;
+  </script>
+</body>
+</html>
