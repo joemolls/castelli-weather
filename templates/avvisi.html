@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Link Utili - Castelli Romani MTB</title>
+  <link rel="icon" href="https://em-content.zobj.net/thumbs/120/apple/354/mountain_26f0-fe0f.png" type="image/png">
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 0;
+      padding: 20px; 
+      background-color: #ecf0f1;
+    }
+    
+    .header {
+      max-width: 1000px;
+      margin: 0 auto 20px auto;
+      text-align: center;
+    }
+    
+    h1 { 
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+    
+    .subtitle {
+      color: #7f8c8d;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    
+    .back-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 30px;
+      border-radius: 25px;
+      text-decoration: none;
+      font-weight: bold;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+    }
+    
+    .back-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+    
+    .last-update {
+      text-align: center;
+      color: #95a5a6;
+      font-size: 12px;
+      margin-bottom: 30px;
+    }
+    
+    .alerts-container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    .alert-card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-left: 5px solid #3498db;
+      transition: transform 0.2s;
+    }
+    
+    .alert-card:hover {
+      transform: translateX(5px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .alert-card.critical {
+      border-left-color: #e74c3c;
+      background: #ffebee;
+    }
+    
+    .alert-card.high {
+      border-left-color: #f39c12;
+      background: #fff8e1;
+    }
+    
+    .alert-card.info {
+      border-left-color: #3498db;
+    }
+    
+    .alert-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 10px;
+    }
+    
+    .alert-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #2c3e50;
+      flex: 1;
+      margin-right: 15px;
+    }
+    
+    .alert-date {
+      font-size: 12px;
+      color: #7f8c8d;
+      white-space: nowrap;
+    }
+    
+    .alert-source {
+      display: inline-block;
+      background: #3498db;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+    
+    .alert-source.critical {
+      background: #e74c3c;
+    }
+    
+    .alert-source.high {
+      background: #f39c12;
+    }
+    
+    .alert-description {
+      color: #555;
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 10px 0;
+    }
+    
+    .alert-link {
+      display: inline-block;
+      color: #3498db;
+      text-decoration: none;
+      font-size: 14px;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    
+    .alert-link:hover {
+      text-decoration: underline;
+    }
+    
+    .section-title {
+      max-width: 1000px;
+      margin: 40px auto 20px auto;
+      padding: 15px 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .section-title h2 {
+      margin: 0;
+      color: #2c3e50;
+      font-size: 20px;
+      border-left: 4px solid #3498db;
+      padding-left: 15px;
+    }
+    
+    .community-links {
+      max-width: 1000px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .community-links h3 {
+      color: #2c3e50;
+      margin-bottom: 15px;
+    }
+    
+    .link-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    
+    .link-item {
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border-left: 3px solid #3498db;
+    }
+    
+    .link-item a {
+      color: #3498db;
+      text-decoration: none;
+      font-weight: bold;
+      display: block;
+      margin-bottom: 5px;
+    }
+    
+    .link-item a:hover {
+      text-decoration: underline;
+    }
+    
+    .link-item p {
+      margin: 5px 0 0 0;
+      font-size: 13px;
+      color: #7f8c8d;
+    }
+    
+    .emergency-box {
+      max-width: 1000px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .emergency-box h3 {
+      color: #856404;
+      margin-top: 0;
+    }
+    
+    .emergency-box p {
+      color: #856404;
+      margin: 10px 0;
+    }
+    
+    .emergency-number {
+      font-size: 24px;
+      font-weight: bold;
+      color: #e74c3c;
+      margin: 10px 0;
+    }
+    
+    .info-box {
+      max-width: 1000px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #e3f2fd;
+      border-left: 4px solid #2196f3;
+      border-radius: 8px;
+    }
+    
+    .info-box h3 {
+      color: #1565c0;
+      margin-top: 0;
+      font-size: 18px;
+    }
+    
+    .info-box p {
+      color: #424242;
+      line-height: 1.6;
+      margin: 10px 0;
+    }
+    
+    @media (max-width: 768px) {
+      .alert-header {
+        flex-direction: column;
+      }
+      
+      .alert-date {
+        margin-top: 5px;
+      }
+      
+      .link-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🔗 Link Utili</h1>
+    <div class="subtitle">Castelli Romani - Fonti ufficiali da controllare prima di ogni uscita</div>
+    <a href="/" class="back-button">← Torna alle Previsioni Meteo</a>
+  </div>
+  
+  <div class="last-update">
+    📅 Pagina aggiornata: <span id="currentTime"></span>
+  </div>
+  
+  <!-- Info Box -->
+  <div class="info-box">
+    <h3>ℹ️ Come funziona questa pagina</h3>
+    <p>
+      Questa pagina raccoglie i <strong>link diretti alle fonti ufficiali</strong> dove vengono pubblicate 
+      ordinanze, chiusure sentieri e tagli boschivi. Non è possibile recuperare automaticamente queste informazioni 
+      perché vengono pubblicate su siti diversi e con formati variabili.
+    </p>
+    <p>
+      <strong>Prima di ogni uscita</strong>, ti consigliamo di controllare manualmente:
+    </p>
+    <ul style="text-align: left; color: #424242;">
+      <li>📋 Sito del Parco Castelli Romani (ordinanze ufficiali)</li>
+      <li>📜 Albi Pretori dei comuni (autorizzazioni tagli boschivi)</li>
+      <li>🚵 Trailforks (segnalazioni in tempo reale dalla community)</li>
+      <li>🚨 Protezione Civile Lazio (allerte meteo e divieti accesso boschi)</li>
+    </ul>
+  </div>
+  
+  <!-- Emergenze -->
+  <div class="emergency-box">
+    <h3>🚨 Numeri di Emergenza</h3>
+    <p>Soccorso Alpino e Speleologico: <span class="emergency-number">118</span></p>
+    <p>Carabinieri Forestali Rocca di Papa: <strong>06 9499035</strong></p>
+    <p>In caso di incendio boschivo: <span class="emergency-number">1515</span></p>
+  </div>
+  
+  <!-- Avvisi Attivi (se presenti) -->
+  {% if alerts %}
+  <div class="section-title">
+    <h2>🔔 Avvisi e Promemoria</h2>
+  </div>
+  
+  <div class="alerts-container">
+    {% for alert in alerts %}
+    <div class="alert-card {{ alert.priority }}">
+      <span class="alert-source {{ alert.priority }}">{{ alert.source }}</span>
+      <div class="alert-header">
+        <div class="alert-title">{{ alert.title }}</div>
+        <div class="alert-date">{{ alert.date }}</div>
+      </div>
+      {% if alert.description %}
+      <div class="alert-description">{{ alert.description }}</div>
+      {% endif %}
+      <a href="{{ alert.link }}" target="_blank" class="alert-link">Vai alla fonte ufficiale →</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  
+  <!-- Link Utili - Fonti Ufficiali -->
+  <div class="section-title">
+    <h2>🔗 Fonti Ufficiali da Controllare</h2>
+  </div>
+  
+  <div class="community-links">
+    <h3>📋 Controlli Essenziali Prima di Uscire:</h3>
+    <div class="link-grid">
+      <div class="link-item">
+        <a href="https://www.parcocastelliromani.it" target="_blank">🏛️ Parco Castelli Romani</a>
+        <p>Ordinanze ufficiali, chiusure temporanee sentieri, comunicazioni dell'Ente Parco</p>
+      </div>
+      
+      <div class="link-item">
+        <a href="https://www.trailforks.com/region/castelli-romani/" target="_blank">🚵 Trailforks</a>
+        <p>Stato sentieri aggiornato in tempo reale dalla community MTB</p>
+      </div>
+      
+      <div class="link-item">
+        <a href="http://www.regione.lazio.it/protezione_civile" target="_blank">🚨 Protezione Civile Lazio</a>
+        <p>Allerte meteo, bollettini criticità, divieti accesso boschi per rischio incendi</p>
+      </div>
+      
+      <div class="link-item">
+        <a href="https://www.comune.roccadipapa.rm.it/albo-pretorio" target="_blank">📜 Albo Pretorio Rocca di Papa</a>
+        <p>Ordinanze comunali e autorizzazioni tagli boschivi</p>
+      </div>
+      
+      <div class="link-item">
+        <a href="https://www.comune.grottaferrata.rm.it/albo-pretorio" target="_blank">📜 Albo Pretorio Grottaferrata</a>
+        <p>Ordinanze e comunicazioni del Comune di Grottaferrata</p>
+      </div>
+      
+      <div class="link-item">
+        <a href="https://www.comune.frascati.rm.it/albo-pretorio" target="_blank">📜 Albo Pretorio Frascati</a>
+        <p>Ordinanze e comunicazioni del Comune di Frascati</p>
+      </div>
+      
+      <div class="link-item">
+        <a href="https://www.comune.albanolaziale.rm.it/albo-pretorio" target="_blank">📜 Albo Pretorio Albano Laziale</a>
+        <p>Ordinanze e comunicazioni del Comune di Albano</p>
+      </div>
+      
+      <div class="link-item">
+        <a href="https://www.facebook.com/groups/mtbcastelliromani" target="_blank">👥 Facebook MTB Castelli</a>
+        <p>Segnalazioni in tempo reale, report condizioni, gruppo community</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Segnala un problema -->
+  <div class="community-links">
+    <h3>📢 Segnala Chiusure o Problemi ai Sentieri</h3>
+    <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 15px;">
+      Hai trovato un sentiero chiuso, pericoloso o con alberi caduti? Segnalalo alla community per aiutare gli altri biker:
+    </p>
+    <div class="link-grid">
+      <div class="link-item">
+        <a href="https://www.trailforks.com" target="_blank">Segnala su Trailforks</a>
+        <p>Crea un report sullo stato del sentiero (chiuso, fangoso, pericoloso)</p>
+      </div>
+      
+      <div class="link-item">
+        <a href="/cdn-cgi/l/email-protection#cda4a3aba28dbdacbfaea2aeacbeb9a8a1a1a4bfa2a0aca3a4e3a4b9">📧 Email all'Ente Parco</a>
+        <p><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="355c5b535a75455447565a565446415059595c475a58545b5c1b5c41">[email&#160;protected]</a> - Per segnalare problemi ufficialmente</p>
+      </div>
+      
+      <div class="link-item">
+        <a href="tel:069499035">📞 Carabinieri Forestali</a>
+        <p>06 9499035 - Per emergenze o segnalazioni urgenti</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Cerca negli Albi Pretori -->
+  <div class="community-links">
+    <h3>🔍 Come Cercare negli Albi Pretori</h3>
+    <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 15px;">
+      Gli albi pretori pubblicano ordinanze e autorizzazioni. Ecco alcune parole chiave utili da cercare:
+    </p>
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 10px;">
+      <strong>Parole chiave:</strong>
+      <ul style="margin: 10px 0; color: #555;">
+        <li>"taglio" o "utilizzazione boschiva" → per tagli programmati</li>
+        <li>"chiusura sentiero" o "divieto transito" → per chiusure temporanee</li>
+        <li>"ordinanza" → per provvedimenti ufficiali</li>
+        <li>"lavori forestali" → per manutenzioni in corso</li>
+      </ul>
+    </div>
+  </div>
+  
+  <div style="max-width: 1000px; margin: 40px auto; text-align: center;">
+    <a href="/" class="back-button">← Torna alle Previsioni Meteo</a>
+  </div>
+  
+  <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+    // Mostra l'ora corrente
+    const now = new Date();
+    cons

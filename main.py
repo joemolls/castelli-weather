@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from locations import LOCATIONS
 from weather_client import fetch_weather
+from scraper import get_all_alerts
 from datetime import datetime, timedelta
 
 app = FastAPI(title="Castelli Weather API")
@@ -111,6 +112,10 @@ def find_best_riding_windows(hourly_data):
         # Skip ore già passate
         if time_obj <= now:
             continue
+        
+        # Skip ore notturne (prima delle 7:00 e dopo le 20:00)
+        if time_obj.hour < 7 or time_obj.hour >= 20:
+            continue
             
         day_key = time_obj.date()
         if day_key not in hours_by_day:
@@ -132,10 +137,6 @@ def find_best_riding_windows(hourly_data):
         if hour_code in [95, 96, 99]:
             hour_score -= 60
         
-        # Skip ore notturne (prima delle 7:00 e dopo le 20:00)
-        if time_obj.hour < 7 or time_obj.hour >= 20:
-            continue
-            
         hours_by_day[day_key].append({
             "time": time_obj,
             "hour": time_obj.hour,
@@ -196,7 +197,16 @@ def find_best_riding_windows(hourly_data):
             elif day == (now + timedelta(days=1)).date():
                 day_name = "Domani"
             else:
-                day_name = day.strftime("%a %d %b")
+                #day_name = day.strftime("%a %d %b")
+                # Giorni della settimana in italiano
+                giorni_it = {
+                    'Mon': 'Lun', 'Tue': 'Mar', 'Wed': 'Mer', 
+                    'Thu': 'Gio', 'Fri': 'Ven', 'Sat': 'Sab', 'Sun': 'Dom'
+                }
+                day_str = day.strftime("%a %d %b")
+                for en, it in giorni_it.items():
+                    day_str = day_str.replace(en, it)
+                day_name = day_str
             
             daily_windows.append({
                 "day": day_name,
@@ -298,5 +308,20 @@ async def dashboard_completa(request: Request):
             "locations_data": all_data,
             "trail_conditions": overall_trail_conditions,
             "riding_windows": overall_riding_windows
+        }
+    )
+
+@app.get("/avvisi", response_class=HTMLResponse)
+async def avvisi(request: Request):
+    """Pagina avvisi: chiusure sentieri, tagli boschivi, allerte"""
+    
+    # Recupera tutti gli avvisi
+    alerts = await get_all_alerts()
+    
+    return templates.TemplateResponse(
+        "avvisi.html",
+        {
+            "request": request,
+            "alerts": alerts
         }
     )
