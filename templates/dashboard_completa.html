@@ -474,6 +474,27 @@
       return descriptions[code] || 'Variabile';
     }
     
+    // Funzione per determinare il colore della barra in base all'intensità della pioggia
+    // Scala di blu: azzurro chiaro -> blu navy
+    function getRainColor(precip) {
+      if (precip === 0) return 'rgba(220, 220, 220, 0.3)';     // Grigio chiaro per nessuna pioggia
+      if (precip < 2) return 'rgba(174, 214, 241, 0.8)';       // Azzurro chiarissimo
+      if (precip < 3) return 'rgba(133, 193, 233, 0.85)';      // Azzurro chiaro
+      if (precip < 5) return 'rgba(52, 152, 219, 0.9)';        // Blu medio
+      if (precip < 10) return 'rgba(41, 128, 185, 0.95)';      // Blu intenso
+      return 'rgba(21, 67, 96, 1)';                            // Blu navy per pioggia molto intensa
+    }
+    
+    // Funzione per descrivere le condizioni MTB in base alla pioggia
+    function getMTBCondition(precip) {
+      if (precip === 0) return '✅ Asciutto';
+      if (precip < 1) return '🟢 Sentieri OK';
+      if (precip < 3) return '🟡 Leggera umidità';
+      if (precip < 5) return '🟠 Sentieri bagnati';
+      if (precip < 10) return '🔴 Fango moderato';
+      return '⛔ Fango intenso';
+    }
+    
     function createChart(data, chartId, dayLabelsId) {
       if (!data || !data.hourly || !data.hourly.time || data.hourly.time.length === 0) {
         console.error('No data available for chart:', chartId);
@@ -481,6 +502,10 @@
       }
       
       const labels = data.hourly.time.map(t => new Date(t));
+      const precipData = data.hourly.precipitation || [];
+      
+      // Crea array di colori dinamici per ogni barra
+      const rainColors = precipData.map(p => getRainColor(p));
       
       const daySeparators = [];
       const dayRanges = [];
@@ -526,6 +551,41 @@
         return;
       }
       
+      // Configurazione annotazioni con linea a 5mm
+      const annotations = {
+        ...daySeparators.reduce((acc, idx) => {
+          acc[`day${idx}`] = {
+            type: 'line', 
+            scaleID: 'x', 
+            value: idx - 0.5,
+            borderColor: 'rgba(149, 165, 166, 0.5)', 
+            borderWidth: 2, 
+            borderDash: [5, 5]
+          };
+          return acc;
+        }, {}),
+        mudLine: {
+          type: 'line',
+          scaleID: 'y1',
+          value: 5,
+          borderColor: 'rgba(52, 152, 219, 0.9)',
+          borderWidth: 2,
+          borderDash: [8, 4],
+          label: {
+            display: true,
+            content: '⚠️ Fango serio (>5mm)',
+            position: 'end',
+            backgroundColor: 'rgba(52, 152, 219, 0.9)',
+            color: 'white',
+            font: {
+              size: 10,
+              weight: 'bold'
+            },
+            padding: 4
+          }
+        }
+      };
+      
       new Chart(ctx, {
         type: 'bar',
         data: {
@@ -534,9 +594,9 @@
             {
               type: 'bar',
               label: 'Precipitazioni (mm)',
-              data: data.hourly.precipitation || [],
-              backgroundColor: 'rgba(52, 152, 219, 0.6)',
-              borderColor: 'rgba(52, 152, 219, 1)',
+              data: precipData,
+              backgroundColor: rainColors,
+              borderColor: rainColors.map(c => c.replace('0.', '1.')), // Bordi più intensi
               borderWidth: 1,
               yAxisID: 'y1',
               order: 3
@@ -579,13 +639,7 @@
           plugins: {
             legend: { display: true, position: 'top', labels: { usePointStyle: true, padding: 15 } },
             annotation: {
-              annotations: daySeparators.reduce((acc, idx) => {
-                acc[`day${idx}`] = {
-                  type: 'line', scaleID: 'x', value: idx - 0.5,
-                  borderColor: 'rgba(149, 165, 166, 0.5)', borderWidth: 2, borderDash: [5, 5]
-                };
-                return acc;
-              }, {})
+              annotations: annotations
             },
             tooltip: {
               callbacks: {
@@ -600,9 +654,11 @@
                   const weatherCode = data.hourly.weather_code ? data.hourly.weather_code[index] : 0;
                   const wind = data.hourly.windspeed_10m ? data.hourly.windspeed_10m[index] : 0;
                   const gust = data.hourly.windgusts_10m ? data.hourly.windgusts_10m[index] : 0;
+                  const precip = precipData[index] || 0;
                   const icon = getWeatherIcon(weatherCode);
                   const desc = getWeatherDescription(weatherCode);
-                  return `${icon} ${desc}\n💨 Raffiche: ${gust.toFixed(0)} km/h`;
+                  const mtbCondition = getMTBCondition(precip);
+                  return `${icon} ${desc}\n💨 Raffiche: ${gust.toFixed(0)} km/h\n🚴 ${mtbCondition}`;
                 }
               }
             }
@@ -615,14 +671,26 @@
             y: {
               type: 'linear', display: true, position: 'left',
               title: { display: true, text: 'Temperatura (°C)', color: 'rgba(231, 76, 60, 1)', font: { weight: 'bold', size: 11 } },
-              ticks: { color: 'rgba(231, 76, 60, 1)' }
+              ticks: { color: 'rgba(231, 76, 60, 1)' },
+              min: -5,
+              max: 35
             },
             y1: {
-              type: 'linear', display: true, position: 'right',
+              type: 'linear', 
+              display: true, 
+              position: 'right',
               title: { display: true, text: 'Precipitazioni (mm)', color: 'rgba(52, 152, 219, 1)', font: { weight: 'bold', size: 11 } },
               ticks: { color: 'rgba(52, 152, 219, 1)' },
               grid: { drawOnChartArea: false }, 
-              beginAtZero: true
+              min: 0,
+              max: 20, // Scala fissa 0-20mm
+              ticks: {
+                stepSize: 5,
+                callback: function(value) {
+                  if (value === 5) return '5mm ⚠️';
+                  return value + 'mm';
+                }
+              }
             },
             y2: {
               type: 'linear', display: false, position: 'right',
