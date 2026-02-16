@@ -7,6 +7,7 @@ async def fetch_weather(lat: float, lon: float):
         "latitude": lat,
         "longitude": lon,
         "hourly": "temperature_2m,precipitation,weather_code,windspeed_10m,windgusts_10m",
+        "models": "icon_seamless",  # Modello DWD ICON - migliore per Europa/Italia
         "forecast_days": 3,
         "timezone": "Europe/Rome"
     }
