@@ -31,6 +31,29 @@ STRAVA_CLUB_ID = 1433598
 # File locale per salvare i token aggiornati
 TOKEN_FILE = "strava_tokens.json"
 
+# ─────────────────────────────────────────
+# CACHE IN MEMORIA - evita 429 rate limit
+# ─────────────────────────────────────────
+_cache = {}
+CACHE_TTL = 900  # 15 minuti in secondi
+
+def get_cache(key: str):
+    """Restituisce il valore dalla cache se non scaduto"""
+    if key in _cache:
+        data, ts = _cache[key]
+        if time.time() - ts < CACHE_TTL:
+            remaining = int(CACHE_TTL - (time.time() - ts))
+            print(f"📦 Cache HIT: {key} (scade tra {remaining}s)")
+            return data
+    return None
+
+def set_cache(key: str, data):
+    """Salva il valore nella cache con timestamp"""
+    _cache[key] = (data, time.time())
+    print(f"💾 Cache SET: {key}")
+
+
+
 
 # ─────────────────────────────────────────
 # TOKEN MANAGEMENT - Refresh automatico
@@ -126,6 +149,10 @@ async def get_valid_token():
 
 async def fetch_club_info() -> Optional[Dict]:
     """Recupera informazioni generali del club Strava"""
+    cached = get_cache("club_info")
+    if cached is not None:
+        return cached
+
     token = await get_valid_token()
     if not token:
         print("❌ STRAVA_ACCESS_TOKEN non configurato in .env")
@@ -144,7 +171,7 @@ async def fetch_club_info() -> Optional[Dict]:
             club = response.json()
             print(f"✅ Club trovato: {club.get('name')}")
 
-            return {
+            result = {
                 "name": club.get("name", "Club MTB"),
                 "member_count": club.get("member_count", 0),
                 "sport_type": club.get("sport_type", "cycling"),
@@ -152,6 +179,8 @@ async def fetch_club_info() -> Optional[Dict]:
                 "state": club.get("state", ""),
                 "country": club.get("country", ""),
             }
+            set_cache("club_info", result)
+            return result
 
     except Exception as e:
         print(f"❌ Errore info club: {e}")
@@ -167,6 +196,10 @@ async def fetch_all_club_activities() -> List[Dict]:
     Recupera le ultime attività del club
     NOTA: L'API /clubs/{id}/activities NON fornisce date né GPS, solo dati base
     """
+    cached = get_cache("club_activities")
+    if cached is not None:
+        return cached
+
     token = await get_valid_token()
     if not token:
         return []
@@ -212,6 +245,7 @@ async def fetch_all_club_activities() -> List[Dict]:
                 })
 
             print(f"✅ Mostro {len(result)} attività")
+            set_cache("club_activities", result)
             return result
 
     except Exception as e:
@@ -400,6 +434,10 @@ async def fetch_starred_segments() -> List[Dict]:
     Recupera i segmenti starred dell'atleta con statistiche complete.
     Due step: 1) lista starred  2) dettaglio per ogni segmento
     """
+    cached = get_cache("starred_segments")
+    if cached is not None:
+        return cached
+
     token = await get_valid_token()
     if not token:
         print("❌ Nessun token valido per starred segments")
@@ -477,6 +515,7 @@ async def fetch_starred_segments() -> List[Dict]:
                     continue
 
             print(f"✅ Recuperati {len(segments)} segmenti con dettagli")
+            set_cache("starred_segments", segments)
             return segments
 
     except Exception as e:
