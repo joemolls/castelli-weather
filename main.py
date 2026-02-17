@@ -5,6 +5,7 @@ from locations import LOCATIONS
 from weather_client import fetch_weather
 from scraper import get_all_alerts
 from strava_client import fetch_club_info, fetch_all_club_activities
+from counter import increment_visit
 from datetime import datetime, timedelta
 import csv
 import httpx
@@ -112,16 +113,13 @@ def find_best_riding_windows(hourly_data):
     now = datetime.now()
     daily_windows = []
     
-    # Raggruppa ore per giorno
     hours_by_day = {}
     for i, time_str in enumerate(hourly_data['time']):
         time_obj = datetime.fromisoformat(time_str)
         
-        # Skip ore già passate
         if time_obj <= now:
             continue
         
-        # Skip ore notturne (prima delle 7:00 e dopo le 20:00)
         if time_obj.hour < 7 or time_obj.hour >= 20:
             continue
             
@@ -129,7 +127,6 @@ def find_best_riding_windows(hourly_data):
         if day_key not in hours_by_day:
             hours_by_day[day_key] = []
         
-        # Calcola score per quest'ora
         hour_temp = hourly_data['temperature_2m'][i]
         hour_precip = hourly_data['precipitation'][i]
         hour_wind = hourly_data['windspeed_10m'][i]
@@ -154,16 +151,14 @@ def find_best_riding_windows(hourly_data):
             "precip": hour_precip
         })
     
-    # Per ogni giorno, trova le migliori finestre di 4-6h
-    for day, hours in sorted(hours_by_day.items())[:3]:  # Max 3 giorni
+    for day, hours in sorted(hours_by_day.items())[:3]:
         if len(hours) < 4:
             continue
         
-        # Cerca finestre consecutive di 4-6h con score medio alto
         best_window = None
         best_avg_score = 0
         
-        for window_size in [6, 5, 4]:  # Prova prima 6h, poi 5h, poi 4h
+        for window_size in [6, 5, 4]:
             for start_idx in range(len(hours) - window_size + 1):
                 window = hours[start_idx:start_idx + window_size]
                 avg_score = sum(h['score'] for h in window) / len(window)
@@ -183,12 +178,10 @@ def find_best_riding_windows(hourly_data):
                         "precip": max_precip
                     }
         
-        # Se il punteggio è troppo basso, skip questo giorno
         if best_window and best_window['score'] < 50:
             continue
             
         if best_window:
-            # Determina rating
             if best_window['score'] >= 80:
                 rating = "excellent"
                 rating_icon = "🟢"
@@ -199,13 +192,11 @@ def find_best_riding_windows(hourly_data):
                 rating = "poor"
                 rating_icon = "🔴"
             
-            # Nome del giorno
             if day == now.date():
                 day_name = "Oggi"
             elif day == (now + timedelta(days=1)).date():
                 day_name = "Domani"
             else:
-                # Giorni della settimana in italiano
                 giorni_it = {
                     'Mon': 'Lun', 'Tue': 'Mar', 'Wed': 'Mer', 
                     'Thu': 'Gio', 'Fri': 'Ven', 'Sat': 'Sab', 'Sun': 'Dom'
@@ -240,39 +231,67 @@ async def fetch_form_feedbacks():
             response = await client.get(csv_url, timeout=10.0)
             response.raise_for_status()
             
-            # Parse CSV
-            csv_data = response.text
-            reader = csv.DictReader(csv_data.splitlines())
+            lines = response.text.strip().split('\n')
+            if len(lines) < 2:
+                return []
             
+            reader = csv.DictReader(lines)
             feedbacks = []
-            for row in reader:
-                # Colonne del Google Form
-                feedback = {
-                    "date": row.get("Informazioni cronologiche", ""),
-                    "location": row.get("Sentiero o Località", ""),
-                    "condition": row.get("Condizione", ""),
-                    "description": row.get("Dettagli (opzionale)", ""),
-                }
-                
-                # Formatta la data se presente
-                if feedback["date"]:
-                    try:
-                        # Google Forms usa formato: 17/02/2024 14:30:45
-                        dt = datetime.strptime(feedback["date"], "%d/%m/%Y %H:%M:%S")
-                        feedback["date"] = dt.strftime("%d/%m %H:%M")
-                    except:
-                        pass  # Mantieni formato originale se parsing fallisce
-                
-                # Combina condizione e descrizione
-                full_description = feedback["condition"]
-                if feedback["description"]:
-                    full_description += f" - {feedback['description']}"
-                feedback["description"] = full_description
-                
-                feedbacks.append(feedback)
+            now = datetime.now()
             
-            # Ritorna le ultime 5 segnalazioni (invertite per avere le più recenti in alto)
-            return feedbacks[-5:][::-1] if len(feedbacks) > 0 else []
+            for row in reader:
+                cols = list(row.keys())
+                
+                timestamp_col = next((c for c in cols if 'Informazioni' in c or 'cronolog' in c), cols[0] if cols else '')
+                location_col = next((c for c in cols if 'Sentiero' in c or 'Localit' in c), cols[1] if len(cols) > 1 else '')
+                condition_col = next((c for c in cols if 'Condizione' in c), cols[2] if len(cols) > 2 else '')
+                details_col = next((c for c in cols if 'Dettagli' in c), cols[4] if len(cols) > 4 else '')
+                
+                timestamp = row.get(timestamp_col, "")
+                location = row.get(location_col, "")
+                condition = row.get(condition_col, "")
+                details = row.get(details_col, "")
+                
+                if not location or not location.strip():
+                    continue
+                
+                # Calcola "quanto tempo fa"
+                time_ago = "Ora sconosciuta"
+                if timestamp:
+                    try:
+                        dt = datetime.strptime(timestamp.replace('.', ':'), "%d/%m/%Y %H:%M:%S")
+                        diff = now - dt
+                        if diff.days == 0:
+                            hours = diff.seconds // 3600
+                            if hours == 0:
+                                mins = diff.seconds // 60
+                                time_ago = "Pochi minuti fa" if mins < 5 else f"{mins} min fa"
+                            elif hours == 1:
+                                time_ago = "1 ora fa"
+                            else:
+                                time_ago = f"{hours} ore fa"
+                        elif diff.days == 1:
+                            time_ago = "Ieri"
+                        elif diff.days < 7:
+                            time_ago = f"{diff.days} giorni fa"
+                        else:
+                            time_ago = dt.strftime("%d/%m/%Y")
+                    except Exception as e:
+                        print(f"Errore parsing data '{timestamp}': {e}")
+                        time_ago = timestamp
+                
+                full_description = condition
+                if details and details.strip():
+                    full_description += f" - {details}"
+                
+                feedbacks.append({
+                    "location": location,
+                    "description": full_description,
+                    "date": time_ago,
+                    "timestamp": timestamp
+                })
+            
+            return feedbacks[::-1][:10] if feedbacks else []
             
     except Exception as e:
         print(f"Errore recupero feedbacks: {e}")
@@ -329,6 +348,9 @@ async def dashboard(request: Request, location: str):
 async def dashboard_completa(request: Request):
     """Dashboard con tutti i grafici delle località dei Castelli Romani"""
     
+    # Incrementa contatore visite
+    visit_stats = increment_visit()
+    
     all_data = []
     overall_trail_conditions = None
     overall_riding_windows = None
@@ -337,7 +359,6 @@ async def dashboard_completa(request: Request):
         data = await fetch_weather(loc_info["lat"], loc_info["lon"])
         hourly = data["hourly"]
         
-        # Calcola condizioni sentieri (solo per la prima località, rappresentativa)
         if overall_trail_conditions is None:
             overall_trail_conditions = calculate_trail_conditions(hourly)
             overall_riding_windows = find_best_riding_windows(hourly)
@@ -361,7 +382,8 @@ async def dashboard_completa(request: Request):
             "request": request,
             "locations_data": all_data,
             "trail_conditions": overall_trail_conditions,
-            "riding_windows": overall_riding_windows
+            "riding_windows": overall_riding_windows,
+            "visit_stats": visit_stats
         }
     )
 
