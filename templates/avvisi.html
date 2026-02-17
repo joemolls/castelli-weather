@@ -401,6 +401,73 @@
     {% endif %}
   </div>
   
+
+<!-- 2.6 SEGMENTI STARRED -->
+{% if starred_segments and starred_segments|length > 0 %}
+<div class="section-box" style="border-left: 4px solid #FC4C02;">
+  <h3 style="color: #FC4C02;">⭐ Segmenti MTB - Castelli Romani</h3>
+  <p style="font-size:12px; color:#7f8c8d; margin-bottom:15px;">
+    I tuoi segmenti preferiti su Strava con statistiche aggiornate
+  </p>
+  
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px;">
+    {% for seg in starred_segments %}
+    <div style="background:#f8f9fa; border-radius:8px; padding:12px; border-left: 3px solid #FC4C02;">
+      
+      <!-- Nome e link -->
+      <a href="{{ seg.link }}" target="_blank" 
+         style="font-weight:bold; color:#FC4C02; text-decoration:none; font-size:14px;">
+        🚵 {{ seg.name }}
+      </a>
+      
+      <!-- Profilo altimetrico -->
+      {% if seg.elevation_profile %}
+      <img src="{{ seg.elevation_profile }}" 
+           style="width:100%; height:60px; object-fit:cover; border-radius:4px; margin:8px 0;"
+           alt="Profilo altimetrico {{ seg.name }}">
+      {% endif %}
+      
+      <!-- Stats principali -->
+      <div style="display:flex; gap:10px; margin:6px 0; flex-wrap:wrap;">
+        <span style="font-size:12px;">📏 <strong>{{ seg.distance_km }}km</strong></span>
+        <span style="font-size:12px;">📈 <strong>{{ seg.avg_grade }}%</strong> media</span>
+        <span style="font-size:12px;">⬆️ <strong>{{ seg.elevation_gain }}m</strong> D+</span>
+      </div>
+      
+      <!-- Popolarità -->
+      <div style="font-size:12px; color:#7f8c8d; margin:4px 0;">
+        👥 {{ "{:,}".format(seg.effort_count).replace(",", ".") }} tentativi • 
+        🚴 {{ "{:,}".format(seg.athlete_count).replace(",", ".") }} atleti
+      </div>
+      
+      <!-- KOM e PR -->
+      <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+        <span style="background:#fff3cd; padding:3px 8px; border-radius:12px; font-size:11px;">
+          👑 KOM: {{ seg.kom }}
+        </span>
+        {% if seg.pr_time != "N/A" %}
+        <span style="background:#e8f5e9; padding:3px 8px; border-radius:12px; font-size:11px;">
+          🏅 Il tuo PR: {{ seg.pr_time }}
+          {% if seg.pr_date %} ({{ seg.pr_date }}){% endif %}
+        </span>
+        {% endif %}
+      </div>
+      
+      <!-- Local Legend -->
+      {% if seg.legend_name %}
+      <div style="font-size:11px; color:#7f8c8d; margin-top:6px;">
+        🔥 Local Legend: <strong>{{ seg.legend_name }}</strong> 
+        ({{ seg.legend_efforts }} uscite in 90gg)
+      </div>
+      {% endif %}
+      
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+
   <!-- 2. WORK IN PROGRESS -->
   <div class="section-box">
     <h3>🚧 Integrazioni in Sviluppo</h3>
@@ -547,4 +614,5 @@
     <a href="/" class="back-button">← Torna alle Previsioni Meteo</a>
   </div>
   
-  <s
+</body>
+</html>

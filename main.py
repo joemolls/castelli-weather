@@ -4,7 +4,7 @@ from fastapi.templating import Jinja2Templates
 from locations import LOCATIONS
 from weather_client import fetch_weather
 from scraper import get_all_alerts
-from strava_client import fetch_club_info, fetch_all_club_activities
+from strava_client import fetch_club_info, fetch_all_club_activities, fetch_starred_segments
 from counter import increment_visit
 from datetime import datetime, timedelta
 import csv
@@ -400,6 +400,7 @@ async def avvisi(request: Request):
     # Recupera dati Strava
     strava_club_info = await fetch_club_info()
     strava_all_activities = await fetch_all_club_activities()
+    starred_segments = await fetch_starred_segments()
     
     return templates.TemplateResponse(
         "avvisi.html",
@@ -409,5 +410,6 @@ async def avvisi(request: Request):
             "feedbacks": feedbacks,
             "strava_club_info": strava_club_info,
             "strava_all_activities": strava_all_activities,
+            "starred_segments": starred_segments,
         }
     )

@@ -389,3 +389,96 @@ def format_duration(seconds: int) -> str:
         return f"{hours}:{minutes:02d}:{secs:02d}"
     else:
         return f"{minutes}:{secs:02d}"
+
+
+# ─────────────────────────────────────────
+# STARRED SEGMENTS
+# ─────────────────────────────────────────
+
+async def fetch_starred_segments() -> List[Dict]:
+    """
+    Recupera i segmenti starred dell'atleta con statistiche complete.
+    Due step: 1) lista starred  2) dettaglio per ogni segmento
+    """
+    token = await get_valid_token()
+    if not token:
+        print("❌ Nessun token valido per starred segments")
+        return []
+
+    print("🔍 Recupero segmenti starred...")
+
+    try:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
+            headers = {"Authorization": f"Bearer {token}"}
+
+            # Step 1: Lista ID dei segmenti starred
+            resp = await client.get(
+                "https://www.strava.com/api/v3/segments/starred",
+                headers=headers,
+                params={"per_page": 50},
+                timeout=10.0
+            )
+            resp.raise_for_status()
+            starred = resp.json()
+            print(f"⭐ Trovati {len(starred)} segmenti starred")
+
+            # Step 2: Dettaglio completo per ogni segmento
+            segments = []
+            for s in starred:
+                seg_id = s["id"]
+                try:
+                    detail_resp = await client.get(
+                        f"https://www.strava.com/api/v3/segments/{seg_id}",
+                        headers=headers,
+                        timeout=10.0
+                    )
+                    detail_resp.raise_for_status()
+                    d = detail_resp.json()
+
+                    # PR personale
+                    pr_stats = d.get("athlete_segment_stats", {})
+                    pr_time = pr_stats.get("pr_elapsed_time", 0)
+                    pr_date = pr_stats.get("pr_date", "")
+                    pr_efforts = pr_stats.get("effort_count", 0)
+
+                    # Local legend (chi ha percorso di più negli ultimi 90gg)
+                    legend = d.get("local_legend", {})
+                    legend_name = legend.get("title", "")
+                    legend_efforts = legend.get("effort_count", "")
+
+                    # KOM
+                    xoms = d.get("xoms", {})
+
+                    segments.append({
+                        "id": seg_id,
+                        "name": d.get("name", ""),
+                        "distance_km": round(d.get("distance", 0) / 1000, 2),
+                        "avg_grade": d.get("average_grade", 0),
+                        "max_grade": d.get("maximum_grade", 0),
+                        "elevation_gain": round(d.get("total_elevation_gain", 0)),
+                        "effort_count": d.get("effort_count", 0),
+                        "athlete_count": d.get("athlete_count", 0),
+                        "kom": xoms.get("kom", "N/A"),
+                        "elevation_profile": d.get("elevation_profiles", {}).get("light_url", ""),
+                        "link": f"https://www.strava.com/segments/{seg_id}",
+                        # PR personale
+                        "pr_time": format_duration(pr_time) if pr_time else "N/A",
+                        "pr_date": pr_date,
+                        "pr_efforts": pr_efforts,
+                        # Local legend
+                        "legend_name": legend_name,
+                        "legend_efforts": legend_efforts,
+                    })
+
+                    print(f"  ✅ {d.get('name')} - {d.get('effort_count', 0):,} tentativi")
+
+                except Exception as e:
+                    print(f"  ❌ Errore segmento {seg_id}: {e}")
+                    continue
+
+            print(f"✅ Recuperati {len(segments)} segmenti con dettagli")
+            return segments
+
+    except Exception as e:
+        print(f"❌ Errore fetch_starred_segments: {e}")
+        return []
