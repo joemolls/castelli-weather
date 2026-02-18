@@ -487,6 +487,11 @@ async def fetch_starred_segments() -> List[Dict]:
                     # KOM
                     xoms = d.get("xoms", {})
 
+                    # Coordinate e polyline per visualizzazione su mappa
+                    start_ll = d.get("start_latlng", [])
+                    end_ll   = d.get("end_latlng", [])
+                    polyline = d.get("map", {}).get("polyline", "")
+
                     segments.append({
                         "id": seg_id,
                         "name": d.get("name", ""),
@@ -506,6 +511,10 @@ async def fetch_starred_segments() -> List[Dict]:
                         # Local legend
                         "legend_name": legend_name,
                         "legend_efforts": legend_efforts,
+                        # Mappa
+                        "start_latlng": start_ll,
+                        "end_latlng":   end_ll,
+                        "polyline":     polyline,
                     })
 
                     print(f"  ✅ {d.get('name')} - {d.get('effort_count', 0):,} tentativi")

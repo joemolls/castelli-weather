@@ -322,7 +322,7 @@
     <h1>🔗 Link Utili</h1>
     <div class="subtitle">Castelli Romani - Fonti ufficiali e segnalazioni community</div>
     <a href="/" class="back-button">← Torna alle Previsioni Meteo</a>
-    <a href="/" class="back-button">🗺️ Percorsi</a>
+    <a href="/percorsi" class="back-button">🗺️ Percorsi</a>
   </div>
   
   <div class="last-update">
@@ -358,116 +358,6 @@
     </div>
     {% endif %}
   </div>
-
-  <!-- 2.5 STRAVA TEAM ACTIVITY -->
-  <div class="section-box" style="border-left: 4px solid #FC4C02;">
-    <h3 style="color: #FC4C02;">📊 Strava - Club MTB Castelli Romani</h3>
-    
-    <!-- Info Club -->
-    {% if strava_club_info %}
-    <div style="background: #fff8f0; padding: 12px; border-radius: 6px; margin-bottom: 15px;">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <strong style="font-size: 16px; color: #FC4C02;">{{ strava_club_info.name }}</strong>
-          <div style="font-size: 13px; color: #7f8c8d; margin-top: 3px;">
-            👥 {{ strava_club_info.member_count }} membri
-            {% if strava_club_info.city %} • 📍 {{ strava_club_info.city }}{% endif %}
-          </div>
-        </div>
-        <a href="https://www.strava.com/clubs/1433598" target="_blank" 
-           style="background: #FC4C02; color: white; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-size: 12px; font-weight: bold;">
-          Vedi su Strava →
-        </a>
-      </div>
-    </div>
-    {% endif %}
-    
-    <!-- Ultime Attività del Club (TUTTE - per test) -->
-    {% if strava_all_activities and strava_all_activities|length > 0 %}
-    <div style="margin-top: 15px;">
-      <h4 style="margin: 0 0 12px 0; color: #2c3e50; font-size: 15px;">🚴 Ultime Uscite del Team</h4>
-      <p style="font-size: 12px; color: #7f8c8d; margin-bottom: 10px;">
-        ⓘ L'API Strava per i club non fornisce date né coordinate GPS precise
-      </p>
-      {% for activity in strava_all_activities %}
-      <div style="background: #f8f9fa; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #FC4C02;">
-        <div style="font-weight: bold; color: #2c3e50; font-size: 14px;">{{ activity.athlete_name }}</div>
-        <div style="font-size: 13px; color: #555; margin: 3px 0;">{{ activity.name }}</div>
-        <div style="font-size: 12px; color: #7f8c8d;">
-          📏 {{ activity.distance_km }}km • ⛰️ {{ activity.elevation_gain }}m • ⏱️ {{ activity.moving_time }}
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    {% endif %}
-  </div>
-  
-
-<!-- 2.6 SEGMENTI STARRED -->
-{% if starred_segments and starred_segments|length > 0 %}
-<div class="section-box" style="border-left: 4px solid #FC4C02;">
-  <h3 style="color: #FC4C02;">⭐ Segmenti MTB - Castelli Romani</h3>
-  <p style="font-size:12px; color:#7f8c8d; margin-bottom:15px;">
-    I tuoi segmenti preferiti su Strava con statistiche aggiornate
-  </p>
-  
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px;">
-    {% for seg in starred_segments %}
-    <div style="background:#f8f9fa; border-radius:8px; padding:12px; border-left: 3px solid #FC4C02;">
-      
-      <!-- Nome e link -->
-      <a href="{{ seg.link }}" target="_blank" 
-         style="font-weight:bold; color:#FC4C02; text-decoration:none; font-size:14px;">
-        🚵 {{ seg.name }}
-      </a>
-      
-      <!-- Profilo altimetrico -->
-      {% if seg.elevation_profile %}
-      <img src="{{ seg.elevation_profile }}" 
-           style="width:100%; height:60px; object-fit:cover; border-radius:4px; margin:8px 0;"
-           alt="Profilo altimetrico {{ seg.name }}">
-      {% endif %}
-      
-      <!-- Stats principali -->
-      <div style="display:flex; gap:10px; margin:6px 0; flex-wrap:wrap;">
-        <span style="font-size:12px;">📏 <strong>{{ seg.distance_km }}km</strong></span>
-        <span style="font-size:12px;">📈 <strong>{{ seg.avg_grade }}%</strong> media</span>
-        <span style="font-size:12px;">⬆️ <strong>{{ seg.elevation_gain }}m</strong> D+</span>
-      </div>
-      
-      <!-- Popolarità -->
-      <div style="font-size:12px; color:#7f8c8d; margin:4px 0;">
-        👥 {{ "{:,}".format(seg.effort_count).replace(",", ".") }} tentativi • 
-        🚴 {{ "{:,}".format(seg.athlete_count).replace(",", ".") }} atleti
-      </div>
-      
-      <!-- KOM e PR -->
-      <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
-        <span style="background:#fff3cd; padding:3px 8px; border-radius:12px; font-size:11px;">
-          👑 KOM: {{ seg.kom }}
-        </span>
-        {% if seg.pr_time != "N/A" %}
-        <span style="background:#e8f5e9; padding:3px 8px; border-radius:12px; font-size:11px;">
-          🏅 Il tuo PR: {{ seg.pr_time }}
-          {% if seg.pr_date %} ({{ seg.pr_date }}){% endif %}
-        </span>
-        {% endif %}
-      </div>
-      
-      <!-- Local Legend -->
-      {% if seg.legend_name %}
-      <div style="font-size:11px; color:#7f8c8d; margin-top:6px;">
-        🔥 Local Legend: <strong>{{ seg.legend_name }}</strong> 
-        ({{ seg.legend_efforts }} uscite in 90gg)
-      </div>
-      {% endif %}
-      
-    </div>
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
-
 
   <!-- 2. WORK IN PROGRESS -->
   <div class="section-box">
