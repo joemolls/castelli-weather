@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Castelli Romani - Percorsi</title>
+  <link rel="icon" href="https://em-content.zobj.net/thumbs/120/apple/354/mountain_26f0-fe0f.png" type="image/png">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 15px;
+      background-color: #ecf0f1;
+    }
+
+    .title-container {
+      max-width: 1000px;
+      margin: 0 auto 8px auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    h1 { color: #2c3e50; margin: 0; text-align: center; }
+
+    .nav-links { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .nav-link {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 8px 18px;
+      border-radius: 25px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 13px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+      white-space: nowrap;
+    }
+    .nav-link:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); }
+    .nav-link.active { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); }
+
+    .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 15px; font-size: 14px; }
+
+    .main-container { max-width: 1000px; margin: 0 auto; }
+
+    /* Mappa */
+    .map-card {
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+    }
+    .map-card h3 {
+      margin: 0 0 10px 0;
+      color: #2c3e50;
+      font-size: 15px;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 6px;
+    }
+    #map {
+      height: 460px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+    }
+
+    .map-status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #7f8c8d;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    #mapStatus { flex: 1; }
+
+    .layer-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filter-btn {
+      padding: 4px 12px;
+      border-radius: 12px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: bold;
+      transition: all 0.15s;
+      background: white;
+    }
+    .filter-btn.all       { border-color: #3498db; color: #3498db; }
+    .filter-btn.hiking    { border-color: #27ae60; color: #27ae60; }
+    .filter-btn.mtb       { border-color: #e67e22; color: #e67e22; }
+    .filter-btn.francigena{ border-color: #e74c3c; color: #e74c3c; }
+
+    .filter-btn.all.active        { background: #3498db; color: white; border-color: #3498db; }
+    .filter-btn.hiking.active     { background: #27ae60; color: white; border-color: #27ae60; }
+    .filter-btn.mtb.active        { background: #e67e22; color: white; border-color: #e67e22; }
+    .filter-btn.francigena.active { background: #e74c3c; color: white; border-color: #e74c3c; }
+
+    /* Lista sentieri */
+    .trails-found-card {
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+    }
+    .trails-found-card h3 {
+      margin: 0 0 10px 0;
+      color: #2c3e50;
+      font-size: 15px;
+      border-bottom: 2px solid #27ae60;
+      padding-bottom: 6px;
+    }
+    #trailsList {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+    }
+    .trail-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 6px;
+      background: #f8f9fa;
+      border-left: 4px solid #ccc;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 12px;
+    }
+    .trail-pill:hover { background: #eaf4fd; }
+    .pill-name { font-weight: bold; color: #2c3e50; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pill-ref { font-size: 10px; background: #ecf0f1; color: #7f8c8d; padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
+
+    /* Condizioni meteo */
+    .section-title {
+      max-width: 1000px;
+      margin: 0 auto 10px auto;
+      color: #2c3e50;
+      font-size: 15px;
+      font-weight: bold;
+    }
+    .conditions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 12px;
+      margin-bottom: 15px;
+    }
+    .condition-card {
+      background: white;
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-left: 5px solid #3498db;
+    }
+    .condition-card h4 { margin: 0 0 4px 0; color: #2c3e50; font-size: 14px; }
+    .condition-desc { font-size: 11px; color: #7f8c8d; margin-bottom: 8px; line-height: 1.4; }
+    .condition-badge { display: inline-block; font-weight: bold; font-size: 13px; margin-bottom: 8px; }
+    .condition-badge.excellent { color: #27ae60; }
+    .condition-badge.good      { color: #e67e22; }
+    .condition-badge.poor      { color: #e74c3c; }
+
+    /* Finestre orarie (stesso stile della dashboard) */
+    .riding-windows { display: flex; flex-direction: column; gap: 5px; }
+    .day-window {
+      padding: 6px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      border-left: 3px solid #ccc;
+      background: #f8f9fa;
+    }
+    .day-window.excellent { border-left-color: #27ae60; background: #f0faf4; }
+    .day-window.good      { border-left-color: #e67e22; background: #fef9f0; }
+    .day-window.poor      { border-left-color: #e74c3c; background: #fdf0f0; }
+    .day-window-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+      margin-bottom: 2px;
+    }
+    .day-window-title { color: #2c3e50; font-size: 12px; }
+    .day-window-time  { color: #7f8c8d; font-weight: normal; font-size: 11px; }
+    .day-window-details { color: #7f8c8d; font-size: 11px; }
+    .no-windows { font-size: 12px; color: #e74c3c; font-style: italic; }
+
+    footer {
+      text-align: center;
+      margin-top: 10px;
+      color: #95a5a6;
+      font-size: 12px;
+      padding: 12px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    @media (max-width: 768px) {
+      .title-container { flex-direction: column; gap: 10px; }
+      h1 { font-size: 22px; }
+      #map { height: 320px; }
+      .map-status-bar { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="title-container">
+    <h1>🗺️ Castelli Romani - Percorsi</h1>
+    <div class="nav-links">
+      <a href="/dashboard-completa" class="nav-link">🏔️ Meteo</a>
+      <a href="/avvisi" class="nav-link">🔗 Link Utili</a>
+      <a href="/percorsi" class="nav-link active">🗺️ Percorsi</a>
+    </div>
+  </div>
+  <div class="subtitle">Sentieri CAI, MTB e Via Francigena — dati live da OpenStreetMap</div>
+
+  <div class="main-container">
+
+    <!-- MAPPA -->
+    <div class="map-card">
+      <h3>🗺️ Mappa Sentieri — Parco dei Castelli Romani</h3>
+      <div id="map"></div>
+      <div class="map-status-bar">
+        <span id="mapStatus">⏳ Connessione a OpenStreetMap...</span>
+        <div class="layer-filters">
+          <button class="filter-btn all active"    onclick="toggleLayer('all')">🗺️ Tutti</button>
+          <button class="filter-btn hiking"        onclick="toggleLayer('hiking')">🥾 Hiking/CAI</button>
+          <button class="filter-btn mtb"           onclick="toggleLayer('mtb')">🚵 MTB</button>
+          <button class="filter-btn francigena"    onclick="toggleLayer('francigena')">✝️ Francigena</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LISTA SENTIERI TROVATI -->
+    <div class="trails-found-card">
+      <h3>📋 Percorsi trovati nell'area (<span id="trailsCount">…</span>)</h3>
+      <div id="trailsList"><p style="color:#95a5a6;font-size:12px;margin:0">Caricamento in corso…</p></div>
+    </div>
+
+    <!-- CONDIZIONI METEO PER ZONA -->
+    <p class="section-title">⏰ Quando uscire — previsione 72h per zona</p>
+    <div class="conditions-grid">
+      {% for trail in trails %}
+      <div class="condition-card" style="border-left-color: {{ trail.color }}">
+        <h4>{{ trail.name }}</h4>
+        <div class="condition-desc">{{ trail.description }}</div>
+
+        <!-- Badge condizione generale -->
+        <div class="condition-badge {{ trail.conditions.rating }}">
+          {{ trail.conditions.rating_emoji }} {{ trail.conditions.rating_text }}
+          &nbsp;·&nbsp; 💧 {{ trail.conditions.rain_24h | round(1) }}mm (24h)
+        </div>
+
+        <!-- Finestre orarie -->
+        <div class="riding-windows">
+          {% for window in trail.riding_windows %}
+          <div class="day-window {{ window.rating }}">
+            <div class="day-window-header">
+              <span class="day-window-title">{{ window.rating_icon }} {{ window.day }}</span>
+              <span class="day-window-time">{{ window.start_time }}–{{ window.end_time }} ({{ window.duration }}h)</span>
+            </div>
+            <div class="day-window-details">
+              🌡️ {{ window.temp | round(0) | int }}°C &nbsp;·&nbsp;
+              💨 {{ window.wind | round(0) | int }} km/h &nbsp;·&nbsp;
+              💧 {{ window.precip | round(1) }}mm
+            </div>
+          </div>
+          {% endfor %}
+          {% if trail.riding_windows | length == 0 %}
+          <p class="no-windows">🔴 Nessuna finestra ideale nei prossimi 3 giorni</p>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <p style="color:#95a5a6;font-size:13px">
+        Nessuna zona configurata in <code>trails.py</code>.
+      </p>
+      {% endfor %}
+    </div>
+
+    <footer>
+      <strong>Tracciati:</strong>
+      <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a> /
+      <a href="https://overpass-api.de" target="_blank">Overpass API</a> ·
+      <strong>Meteo:</strong>
+      <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a> ·
+      Test App by <strong>G.Mollo</strong>
+    </footer>
+  </div>
+
+  <script>
+  // ── Bounding box Castelli Romani ─────────────────────────────────────────────
+  const BBOX = { s: 41.65, w: 12.57, n: 41.85, e: 12.90 };
+
+  // ── Leaflet ──────────────────────────────────────────────────────────────────
+  const map = L.map('map').setView([41.745, 12.73], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18
+  }).addTo(map);
+
+  // ── Layer groups ─────────────────────────────────────────────────────────────
+  const layers = {
+    hiking:     L.layerGroup().addTo(map),
+    mtb:        L.layerGroup().addTo(map),
+    francigena: L.layerGroup().addTo(map),
+  };
+
+  const COLORS = {
+    hiking:     '#27ae60',
+    mtb:        '#e67e22',
+    francigena: '#e74c3c',
+  };
+
+  // ── Classifica route ─────────────────────────────────────────────────────────
+  function classify(tags) {
+    const name = (tags.name || '').toLowerCase();
+    const ref  = (tags.ref  || '').toLowerCase();
+    const type = (tags.route || '').toLowerCase();
+    if (name.includes('francigena') || ref.includes('vf')) return 'francigena';
+    if (type === 'mtb' || name.includes('mtb') || name.includes('ciclistic')) return 'mtb';
+    return 'hiking';
+  }
+
+  // ── Disegna i way di una relation ────────────────────────────────────────────
+  function drawRelation(rel, wayById, nodeById) {
+    const tags  = rel.tags || {};
+    const cat   = classify(tags);
+    const color = COLORS[cat];
+    const name  = tags.name || tags.ref || `Percorso #${rel.id}`;
+    const ref   = tags.ref  || '';
+    let drawn = 0;
+
+    (rel.members || [])
+      .filter(m => m.type === 'way')
+      .forEach(m => {
+        const way = wayById[m.ref];
+        if (!way) return;
+
+        let coords = [];
+        if (way.geometry && way.geometry.length > 1) {
+          coords = way.geometry.map(p => [p.lat, p.lon]);
+        } else if (way.nodes) {
+          coords = way.nodes.map(nid => {
+            const n = nodeById[nid];
+            return n ? [n.lat, n.lon] : null;
+          }).filter(Boolean);
+        }
+
+        if (coords.length > 1) {
+          L.polyline(coords, {
+            color,
+            weight: cat === 'francigena' ? 5 : 3,
+            opacity: 0.82,
+            lineJoin: 'round',
+            lineCap: 'round',
+          })
+          .bindPopup(
+            `<b>${name}</b>` +
+            (ref ? `<br>🔵 Ref: ${ref}` : '') +
+            `<br><small style="color:#7f8c8d">Tipo: ${cat}</small>`
+          )
+          .addTo(layers[cat]);
+          drawn++;
+        }
+      });
+
+    return drawn > 0 ? { name, ref, cat, color } : null;
+  }
+
+  // ── Caricamento Overpass ─────────────────────────────────────────────────────
+  async function loadRoutes() {
+    const statusEl = document.getElementById('mapStatus');
+    const { s, w, n, e } = BBOX;
+
+    // Scarica relation + geometry in una sola query
+    const query = `[out:json][timeout:50];
+(
+  relation["route"="hiking"](${s},${w},${n},${e});
+  relation["route"="foot"](${s},${w},${n},${e});
+  relation["route"="mtb"](${s},${w},${n},${e});
+);
+out tags members;
+>;
+out geom;`;
+
+    try {
+      statusEl.textContent = '⏳ Download tracciati da OpenStreetMap…';
+
+      const resp = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(query),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+
+      statusEl.textContent = '⏳ Disegno tracciati…';
+
+      // Indici rapidi
+      const wayById  = {};
+      const nodeById = {};
+      data.elements.forEach(el => {
+        if (el.type === 'way')  wayById[el.id]  = el;
+        if (el.type === 'node') nodeById[el.id] = el;
+      });
+
+      const found = [];
+      data.elements
+        .filter(el => el.type === 'relation')
+        .forEach(rel => {
+          const result = drawRelation(rel, wayById, nodeById);
+          if (result) found.push(result);
+        });
+
+      renderList(found);
+      document.getElementById('trailsCount').textContent = found.length;
+      statusEl.textContent = `✅ ${found.length} percorsi tracciati · Clicca su un sentiero per i dettagli`;
+
+    } catch(err) {
+      statusEl.textContent = `❌ Errore caricamento: ${err.message}`;
+      document.getElementById('trailsCount').textContent = '0';
+      document.getElementById('trailsList').innerHTML =
+        `<p style="color:#e74c3c;font-size:12px">Impossibile contattare OpenStreetMap. Riprova tra qualche secondo.</p>`;
+      console.error(err);
+    }
+  }
+
+  // ── Render lista ─────────────────────────────────────────────────────────────
+  function renderList(trails) {
+    const el = document.getElementById('trailsList');
+    if (!trails.length) {
+      el.innerHTML = '<p style="color:#95a5a6;font-size:12px;margin:0">Nessun percorso trovato nell\'area.</p>';
+      return;
+    }
+    const icon = { hiking:'🥾', mtb:'🚵', francigena:'✝️' };
+    // Ordine: francigena → hiking → mtb, poi alfabetico
+    trails.sort((a,b) => {
+      const order = { francigena:0, hiking:1, mtb:2 };
+      return (order[a.cat]-order[b.cat]) || a.name.localeCompare(b.name, 'it');
+    });
+    el.innerHTML = trails.map(t => `
+      <div class="trail-pill" style="border-left-color:${t.color}"
+           onclick="focusCat('${t.cat}')">
+        <span>${icon[t.cat]||'📍'}</span>
+        <span class="pill-name" title="${t.name}">${t.name}</span>
+        ${t.ref ? `<span class="pill-ref">${t.ref}</span>` : ''}
+      </div>`).join('');
+  }
+
+  // ── Filtri ───────────────────────────────────────────────────────────────────
+  function toggleLayer(type) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.filter-btn.${type}`).classList.add('active');
+
+    Object.entries(layers).forEach(([cat, layer]) => {
+      if (type === 'all' || type === cat) map.addLayer(layer);
+      else map.removeLayer(layer);
+    });
+  }
+
+  function focusCat(cat) {
+    toggleLayer(cat);
+    try {
+      const allLayers = [];
+      layers[cat].eachLayer(l => allLayers.push(l));
+      if (allLayers.length) {
+        const fg = L.featureGroup(allLayers);
+        const b  = fg.getBounds();
+        if (b.isValid()) map.fitBounds(b, { padding: [30, 30], maxZoom: 14 });
+      }
+    } catch(e) {}
+  }
+
+  // ── Start ────────────────────────────────────────────────────────────────────
+  loadRoutes();
+  </script>
+
+</body>
+</html>

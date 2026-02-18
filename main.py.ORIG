@@ -7,12 +7,14 @@ from scraper import get_all_alerts
 from strava_client import fetch_club_info, fetch_all_club_activities, fetch_starred_segments
 from counter import increment_visit
 from datetime import datetime, timedelta
+from trails import TRAILS
 import csv
 import httpx
 import os
 from dotenv import load_dotenv
 
 # Carica variabili d'ambiente
+
 load_dotenv()
 
 app = FastAPI(title="Castelli Weather API")
@@ -387,33 +389,6 @@ async def dashboard_completa(request: Request):
         }
     )
 
-@app.get("/percorsi", response_class=HTMLResponse)
-async def percorsi(request: Request):
-    """Pagina percorsi con mappa OSM e condizioni meteo per zona"""
-    from trails import TRAILS
-
-    trails_with_weather = []
-    for trail_key, trail_info in TRAILS.items():
-        weather = await fetch_weather(trail_info["weather_lat"], trail_info["weather_lon"])
-        hourly = weather["hourly"]
-        conditions = calculate_trail_conditions(hourly)
-        riding_windows = find_best_riding_windows(hourly)
-
-        trails_with_weather.append({
-            **trail_info,
-            "key": trail_key,
-            "conditions": conditions,
-            "riding_windows": riding_windows,
-        })
-
-    return templates.TemplateResponse(
-        "percorsi.html",
-        {
-            "request": request,
-            "trails": trails_with_weather,
-        }
-    )
-
 @app.get("/avvisi", response_class=HTMLResponse)
 async def avvisi(request: Request):
     """Pagina avvisi: chiusure sentieri, tagli boschivi, allerte"""
@@ -440,3 +415,45 @@ async def avvisi(request: Request):
             "starred_segments": starred_segments,
         }
     )
+
+@app.get("/percorsi", response_class=HTMLResponse)
+async def percorsi(request: Request):
+    """Mappa percorsi con condizioni meteo per trail"""
+    
+    # Recupera meteo per ogni percorso (coordinate punto medio)
+    trails_with_weather = []
+    for trail_key, trail_info in TRAILS.items():
+        weather = await fetch_weather(trail_info["weather_lat"], trail_info["weather_lon"])
+        hourly = weather["hourly"]
+        conditions = calculate_trail_conditions(hourly)
+        
+        trails_with_weather.append({
+            **trail_info,
+            "key": trail_key,
+            "conditions": conditions,
+        })
+    
+    return templates.TemplateResponse(
+        "percorsi.html",
+        {
+            "request": request,
+            "trails": trails_with_weather,
+        }
+    )
+
+@app.get("/api/trail-geojson/{trail_key}")
+async def trail_geojson(trail_key: str):
+    """Proxy per GeoJSON da Overpass API (evita CORS)"""
+    if trail_key not in TRAILS:
+        raise HTTPException(status_code=404, detail="Trail not found")
+    
+    trail = TRAILS[trail_key]
+    if not trail.get("osm_relation_id"):
+        raise HTTPException(status_code=404, detail="No OSM data for this trail")
+    
+    osm_id = trail["osm_relation_id"]
+    url = f"https://overpass-api.de/api/interpreter?data=[out:json];relation({osm_id});out+geom;"
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, timeout=30.0)
+        return response.json()
