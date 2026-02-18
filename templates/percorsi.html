@@ -299,7 +299,7 @@
 
   <script>
   // ── Bounding box Castelli Romani ─────────────────────────────────────────────
-  const BBOX = { s: 41.65, w: 12.57, n: 41.85, e: 12.90 };
+  const S = 41.65, W = 12.57, N = 41.85, E = 12.90;
 
   // ── Leaflet ──────────────────────────────────────────────────────────────────
   const map = L.map('map').setView([41.745, 12.73], 12);
@@ -321,165 +321,169 @@
     francigena: '#e74c3c',
   };
 
-  // ── Classifica route ─────────────────────────────────────────────────────────
+  // ── Classificazione ──────────────────────────────────────────────────────────
   function classify(tags) {
-    const name = (tags.name || '').toLowerCase();
-    const ref  = (tags.ref  || '').toLowerCase();
-    const type = (tags.route || '').toLowerCase();
+    const name  = (tags.name  || '').toLowerCase();
+    const ref   = (tags.ref   || '').toLowerCase();
+    const route = (tags.route || '').toLowerCase();
     if (name.includes('francigena') || ref.includes('vf')) return 'francigena';
-    if (type === 'mtb' || name.includes('mtb') || name.includes('ciclistic')) return 'mtb';
+    if (route === 'mtb' || name.includes('mtb')) return 'mtb';
     return 'hiking';
   }
 
-  // ── Disegna i way di una relation ────────────────────────────────────────────
-  function drawRelation(rel, wayById, nodeById) {
+  // ── Disegna una relation ─────────────────────────────────────────────────────
+  // Con "out geom" su relations, ogni member WAY ha già geometry:[{lat,lon},...] inline.
+  // Non serve nessun lookup per ID.
+  function drawRelation(rel) {
     const tags  = rel.tags || {};
     const cat   = classify(tags);
     const color = COLORS[cat];
     const name  = tags.name || tags.ref || `Percorso #${rel.id}`;
     const ref   = tags.ref  || '';
-    let drawn = 0;
+    const network = tags.network || '';
+    let segmentsDrawn = 0;
 
     (rel.members || [])
-      .filter(m => m.type === 'way')
+      .filter(m => m.type === 'way' && m.geometry && m.geometry.length > 1)
       .forEach(m => {
-        const way = wayById[m.ref];
-        if (!way) return;
-
-        let coords = [];
-        if (way.geometry && way.geometry.length > 1) {
-          coords = way.geometry.map(p => [p.lat, p.lon]);
-        } else if (way.nodes) {
-          coords = way.nodes.map(nid => {
-            const n = nodeById[nid];
-            return n ? [n.lat, n.lon] : null;
-          }).filter(Boolean);
-        }
-
-        if (coords.length > 1) {
-          L.polyline(coords, {
-            color,
-            weight: cat === 'francigena' ? 5 : 3,
-            opacity: 0.82,
-            lineJoin: 'round',
-            lineCap: 'round',
-          })
-          .bindPopup(
-            `<b>${name}</b>` +
-            (ref ? `<br>🔵 Ref: ${ref}` : '') +
-            `<br><small style="color:#7f8c8d">Tipo: ${cat}</small>`
-          )
-          .addTo(layers[cat]);
-          drawn++;
-        }
+        const coords = m.geometry.map(p => [p.lat, p.lon]);
+        L.polyline(coords, {
+          color,
+          weight: cat === 'francigena' ? 5 : 3,
+          opacity: 0.85,
+          lineJoin: 'round',
+          lineCap:  'round',
+        })
+        .bindPopup(
+          `<b>${name}</b>` +
+          (ref     ? `<br>🔵 Ref: ${ref}`         : '') +
+          (network ? `<br>🗺️ Network: ${network}` : '') +
+          `<br><small style="color:#888">Tipo: ${cat}</small>`
+        )
+        .addTo(layers[cat]);
+        segmentsDrawn++;
       });
 
-    return drawn > 0 ? { name, ref, cat, color } : null;
+    return segmentsDrawn > 0 ? { name, ref, cat, color } : null;
   }
 
-  // ── Caricamento Overpass ─────────────────────────────────────────────────────
+  // ── Query Overpass con "out geom" direttamente sulle relations ───────────────
+  // Questo è il metodo corretto: la geometry dei way membri è inclusa inline
+  // nei members della relation, senza bisogno di un secondo passaggio.
   async function loadRoutes() {
-    const statusEl = document.getElementById('mapStatus');
-    const { s, w, n, e } = BBOX;
+    const statusEl  = document.getElementById('mapStatus');
+    const listEl    = document.getElementById('trailsList');
+    const countEl   = document.getElementById('trailsCount');
 
-    // Scarica relation + geometry in una sola query
-    const query = `[out:json][timeout:50];
+    const query = `[out:json][timeout:60];
 (
-  relation["route"="hiking"](${s},${w},${n},${e});
-  relation["route"="foot"](${s},${w},${n},${e});
-  relation["route"="mtb"](${s},${w},${n},${e});
+  relation["route"="hiking"](${S},${W},${N},${E});
+  relation["route"="foot"](${S},${W},${N},${E});
+  relation["route"="mtb"](${S},${W},${N},${E});
 );
-out tags members;
->;
 out geom;`;
 
     try {
-      statusEl.textContent = '⏳ Download tracciati da OpenStreetMap…';
+      statusEl.textContent = '⏳ Connessione a OpenStreetMap…';
+      listEl.innerHTML     = '<p style="color:#95a5a6;font-size:12px;margin:0">Download in corso…</p>';
 
       const resp = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        body: 'data=' + encodeURIComponent(query),
+        method:  'POST',
+        body:    'data=' + encodeURIComponent(query),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
 
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (!resp.ok) throw new Error(`Overpass HTTP ${resp.status}`);
+
       const data = await resp.json();
+      const relations = (data.elements || []).filter(e => e.type === 'relation');
 
-      statusEl.textContent = '⏳ Disegno tracciati…';
+      statusEl.textContent = `⏳ Ricevute ${relations.length} relations — disegno tracciati…`;
 
-      // Indici rapidi
-      const wayById  = {};
-      const nodeById = {};
-      data.elements.forEach(el => {
-        if (el.type === 'way')  wayById[el.id]  = el;
-        if (el.type === 'node') nodeById[el.id] = el;
-      });
+      if (relations.length === 0) {
+        statusEl.textContent = '⚠️ Nessuna relation trovata nell\'area. Riprova tra qualche secondo.';
+        countEl.textContent  = '0';
+        listEl.innerHTML     = '<p style="color:#e67e22;font-size:12px">OpenStreetMap non ha restituito dati. Riprova.</p>';
+        return;
+      }
 
       const found = [];
-      data.elements
-        .filter(el => el.type === 'relation')
-        .forEach(rel => {
-          const result = drawRelation(rel, wayById, nodeById);
-          if (result) found.push(result);
-        });
+      relations.forEach(rel => {
+        const result = drawRelation(rel);
+        if (result) found.push(result);
+      });
 
       renderList(found);
-      document.getElementById('trailsCount').textContent = found.length;
-      statusEl.textContent = `✅ ${found.length} percorsi tracciati · Clicca su un sentiero per i dettagli`;
+      countEl.textContent  = found.length;
+      statusEl.textContent = found.length > 0
+        ? `✅ ${found.length} percorsi tracciati · Clicca su un percorso nella lista per zoommare`
+        : `⚠️ ${relations.length} relations ricevute ma nessun tracciato disegnato (geometry assente)`;
 
     } catch(err) {
-      statusEl.textContent = `❌ Errore caricamento: ${err.message}`;
-      document.getElementById('trailsCount').textContent = '0';
-      document.getElementById('trailsList').innerHTML =
-        `<p style="color:#e74c3c;font-size:12px">Impossibile contattare OpenStreetMap. Riprova tra qualche secondo.</p>`;
-      console.error(err);
+      statusEl.textContent = `❌ ${err.message} — riprova tra qualche secondo`;
+      countEl.textContent  = '?';
+      listEl.innerHTML     = `<p style="color:#e74c3c;font-size:12px">Errore: ${err.message}</p>`;
+      console.error('Overpass error:', err);
     }
   }
 
-  // ── Render lista ─────────────────────────────────────────────────────────────
+  // ── Lista percorsi ───────────────────────────────────────────────────────────
   function renderList(trails) {
-    const el = document.getElementById('trailsList');
+    const el   = document.getElementById('trailsList');
+    const icon = { hiking:'🥾', mtb:'🚵', francigena:'✝️' };
+
     if (!trails.length) {
-      el.innerHTML = '<p style="color:#95a5a6;font-size:12px;margin:0">Nessun percorso trovato nell\'area.</p>';
+      el.innerHTML = '<p style="color:#95a5a6;font-size:12px;margin:0">Nessun percorso trovato.</p>';
       return;
     }
-    const icon = { hiking:'🥾', mtb:'🚵', francigena:'✝️' };
-    // Ordine: francigena → hiking → mtb, poi alfabetico
-    trails.sort((a,b) => {
+
+    trails.sort((a, b) => {
       const order = { francigena:0, hiking:1, mtb:2 };
-      return (order[a.cat]-order[b.cat]) || a.name.localeCompare(b.name, 'it');
+      return (order[a.cat] - order[b.cat]) || a.name.localeCompare(b.name, 'it');
     });
+
     el.innerHTML = trails.map(t => `
       <div class="trail-pill" style="border-left-color:${t.color}"
-           onclick="focusCat('${t.cat}')">
-        <span>${icon[t.cat]||'📍'}</span>
+           onclick="focusTrail('${t.cat}', '${t.name.replace(/'/g,"\\'")}')">
+        <span>${icon[t.cat] || '📍'}</span>
         <span class="pill-name" title="${t.name}">${t.name}</span>
         ${t.ref ? `<span class="pill-ref">${t.ref}</span>` : ''}
       </div>`).join('');
   }
 
-  // ── Filtri ───────────────────────────────────────────────────────────────────
+  // ── Filtri layer ─────────────────────────────────────────────────────────────
   function toggleLayer(type) {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     document.querySelector(`.filter-btn.${type}`).classList.add('active');
-
     Object.entries(layers).forEach(([cat, layer]) => {
       if (type === 'all' || type === cat) map.addLayer(layer);
       else map.removeLayer(layer);
     });
   }
 
-  function focusCat(cat) {
+  // ── Zoom su categoria (click su bottone filtro o pill) ───────────────────────
+  function focusTrail(cat, name) {
+    // Mostra solo quella categoria
     toggleLayer(cat);
-    try {
-      const allLayers = [];
-      layers[cat].eachLayer(l => allLayers.push(l));
-      if (allLayers.length) {
-        const fg = L.featureGroup(allLayers);
-        const b  = fg.getBounds();
-        if (b.isValid()) map.fitBounds(b, { padding: [30, 30], maxZoom: 14 });
-      }
-    } catch(e) {}
+
+    // Raccoglie tutti i polyline del layer e fa fitBounds
+    const polylines = [];
+    layers[cat].eachLayer(l => polylines.push(l));
+
+    if (!polylines.length) return;
+
+    // Se il nome è specificato, cerca solo quel percorso
+    // altrimenti zoom sull'intera categoria
+    const target = name
+      ? polylines.filter(l => l.getPopup && l.getPopup() &&
+          l.getPopup().getContent().includes(name))
+      : polylines;
+
+    const group  = L.featureGroup(target.length ? target : polylines);
+    const bounds = group.getBounds();
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    }
   }
 
   // ── Start ────────────────────────────────────────────────────────────────────
