@@ -70,8 +70,9 @@
       border-radius: 8px;
       padding: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      box-sizing: border-box;
       display: grid;
-      grid-template-columns: 1fr 1fr 2fr;
+      grid-template-columns: 1fr 1.5fr 1fr;
       gap: 15px;
       align-items: start;
     }
@@ -159,6 +160,47 @@
       font-size: 9px;
     }
     
+    /* Soil Dryness — inline compact */
+    .soil-dryness-inline {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid #ecf0f1;
+      font-size: 11px;
+      color: #555;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .soil-dryness-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Storico 14 giorni */
+    .history-section {
+      max-width: 1000px;
+      margin: 15px auto;
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      box-sizing: border-box;
+    }
+    .history-section h3 {
+      margin: 0 0 10px 0;
+      color: #2c3e50;
+      font-size: 15px;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 6px;
+    }
+    .history-chart-container {
+      height: 160px;
+      position: relative;
+    }
+
     .trail-warning-badge {
       display: inline-block;
       background: #fff3cd;
@@ -370,7 +412,7 @@
   
   <!-- MTB Info Compact - Tutto su una riga -->
   <div class="mtb-compact">
-    <!-- Condizioni Sentieri -->
+    <!-- Condizioni Sentieri + Soil Dryness -->
     <div class="compact-section">
       <h3>🚴‍♂️ Condizioni Sentieri</h3>
       <div class="trail-score-compact {{ trail_conditions.rating }}">
@@ -381,8 +423,42 @@
         <li>{{ reason }}</li>
         {% endfor %}
       </ul>
+      {% if soil_dryness %}
+      <div class="soil-dryness-inline">
+        <span class="soil-dryness-dot" style="background:{{ soil_dryness.color }}"></span>
+        🌱 Terreno: <strong style="color:{{ soil_dryness.color }}">{{ soil_dryness.label }}</strong>
+        — {{ soil_dryness.dry_days }} giorni senza pioggia
+      </div>
+      {% endif %}
     </div>
     
+    <!-- Quando Uscire -->
+    <div class="compact-section">
+      <h3>⏰ Quando uscire?</h3>
+      <div class="riding-windows-compact">
+        {% for window in riding_windows %}
+        <div class="day-window {{ window.rating }}">
+          <div class="day-window-header">
+            <span class="day-window-title">{{ window.rating_icon }} {{ window.day }}</span>
+            <span class="day-window-time">{{ window.start_time }}-{{ window.end_time }} ({{ window.duration }}h)</span>
+          </div>
+          <div class="day-window-details">
+            🌡️ {{ window.temp | round(0) }}°C · 💨 {{ window.wind | round(0) }} km/h · 💧 {{ window.precip | round(1) }}mm
+          </div>
+          {% if loop.first and trail_conditions.rating == 'poor' %}
+          <div class="trail-warning-badge">⚠️ Terreno saturo ({{ trail_conditions.rain_24h | round(1) }}mm/24h) — sentieri danneggiati</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+        {% if riding_windows|length == 0 %}
+        <div class="day-window poor">
+          <div class="day-window-title">🔴 Nessuna finestra ideale</div>
+          <div class="day-window-details">Condizioni non favorevoli per XCM nei prossimi 3 giorni</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
     <!-- Vento in Quota -->
     <div class="compact-section">
       <h3>💨 Vento in Quota</h3>
@@ -412,33 +488,6 @@
         </div>
       </div>
     </div>
-    
-    <!-- Quando Uscire -->
-    <div class="compact-section">
-      <h3>⏰ Quando uscire?</h3>
-      <div class="riding-windows-compact">
-        {% for window in riding_windows %}
-        <div class="day-window {{ window.rating }}">
-          <div class="day-window-header">
-            <span class="day-window-title">{{ window.rating_icon }} {{ window.day }}</span>
-            <span class="day-window-time">{{ window.start_time }}-{{ window.end_time }} ({{ window.duration }}h)</span>
-          </div>
-          <div class="day-window-details">
-            🌡️ {{ window.temp | round(0) }}°C · 💨 {{ window.wind | round(0) }} km/h · 💧 {{ window.precip | round(1) }}mm
-          </div>
-          {% if loop.first and trail_conditions.rating == 'poor' %}
-          <div class="trail-warning-badge">⚠️ Terreno saturo ({{ trail_conditions.rain_24h | round(1) }}mm/24h) — sentieri danneggiati</div>
-          {% endif %}
-        </div>
-        {% endfor %}
-        {% if riding_windows|length == 0 %}
-        <div class="day-window poor">
-          <div class="day-window-title">🔴 Nessuna finestra ideale</div>
-          <div class="day-window-details">Condizioni non favorevoli per XCM nei prossimi 3 giorni</div>
-        </div>
-        {% endif %}
-      </div>
-    </div>
   </div>
   
   <!-- Location Sections -->
@@ -455,8 +504,18 @@
       <canvas id="chart{{ loop.index }}"></canvas>
     </div>
   </div>
+
+  {% if location.soil_dryness and location.soil_dryness.history %}
+  <div class="history-section">
+    <h3>📅 Storico Precipitazioni — ultimi 7 giorni ({{ location.name }})</h3>
+    <div class="history-chart-container">
+      <canvas id="historyChart{{ loop.index }}"></canvas>
+    </div>
+  </div>
+  {% endif %}
+
   {% endfor %}
-  
+
   <footer>
     <h3>📊 Fonti dei Dati</h3>
     <div class="data-source">
@@ -634,26 +693,7 @@
           };
           return acc;
         }, {}),
-        mudLine: {
-          type: 'line',
-          scaleID: 'y1',
-          value: 5,
-          borderColor: 'rgba(52, 152, 219, 0.35)',
-          borderWidth: 2,
-          borderDash: [8, 4],
-          label: {
-            display: true,
-            content: '⚠️ Fango se >5mm',
-            position: 'end',
-            backgroundColor: 'rgba(52, 152, 219, 0.35)',
-            color: 'white',
-            font: {
-              size: 10,
-              weight: 'bold'
-            },
-            padding: 4
-          }
-        }
+
       };
       
       new Chart(ctx, {
@@ -773,12 +813,130 @@
       });
     }
     
-    // Crea tutti i grafici
+    // Crea tutti i grafici previsioni
     console.log('Creating charts for', locationsData.length, 'locations');
     locationsData.forEach((location, index) => {
       console.log('Creating chart for:', location.name);
       createChart(location, `chart${index + 1}`, `dayLabels${index + 1}`);
     });
+
+    // ── Grafici storici per ogni località ──────────────────────────────────
+    function createHistoryChart(canvasId, historyData) {
+      var ctx = document.getElementById(canvasId);
+      if (!ctx || !historyData || !historyData.length) return;
+
+      var labels   = historyData.map(function(d) { return d.day + ' ' + d.date; });
+      var precips  = historyData.map(function(d) { return d.precip; });
+      var tempMax  = historyData.map(function(d) { return d.temp_max; });
+      var tempMin  = historyData.map(function(d) { return d.temp_min; });
+
+      // Colori barre: verde se <2mm (dry), giallo <10mm, arancio <25mm, rosso ≥25mm
+      var barColors = precips.map(function(p) {
+        if (p < 2)  return 'rgba(39, 174, 96, 0.7)';
+        if (p < 10) return 'rgba(247, 183, 51, 0.8)';
+        if (p < 25) return 'rgba(230, 126, 34, 0.85)';
+        return 'rgba(231, 76, 60, 0.9)';
+      });
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              type: 'bar',
+              label: 'Precipitazioni (mm)',
+              data: precips,
+              backgroundColor: barColors,
+              borderColor: barColors.map(function(c) { return c.replace('0.7','1').replace('0.8','1').replace('0.85','1').replace('0.9','1'); }),
+              borderWidth: 1,
+              yAxisID: 'yPrecip',
+              order: 2
+            },
+            {
+              type: 'line',
+              label: 'Temp Max (°C)',
+              data: tempMax,
+              borderColor: 'rgba(231, 76, 60, 0.9)',
+              backgroundColor: 'transparent',
+              borderWidth: 2,
+              pointRadius: 3,
+              tension: 0.3,
+              yAxisID: 'yTemp',
+              order: 1
+            },
+            {
+              type: 'line',
+              label: 'Temp Min (°C)',
+              data: tempMin,
+              borderColor: 'rgba(52, 152, 219, 0.9)',
+              backgroundColor: 'transparent',
+              borderWidth: 1.5,
+              pointRadius: 2,
+              borderDash: [4, 3],
+              tension: 0.3,
+              yAxisID: 'yTemp',
+              order: 1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 14 } },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  if (ctx.dataset.yAxisID === 'yPrecip') return ' ' + ctx.parsed.y + ' mm';
+                  return ' ' + ctx.parsed.y + ' °C';
+                },
+                afterBody: function(items) {
+                  var p = items[0] ? precips[items[0].dataIndex] : 0;
+                  if (p < 2)  return ['🟢 Terreno: asciutto'];
+                  if (p < 10) return ['🟡 Terreno: umido'];
+                  if (p < 25) return ['🟠 Terreno: bagnato'];
+                  return ['🔴 Terreno: saturo'];
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { font: { size: 10 }, maxRotation: 45 },
+              grid: { display: false }
+            },
+            yPrecip: {
+              type: 'linear',
+              position: 'right',
+              title: { display: true, text: 'Precipitazioni (mm)', color: 'rgba(52,152,219,1)', font: { size: 10 } },
+              ticks: { color: 'rgba(52,152,219,1)', font: { size: 10 },
+                callback: function(v) { return v + 'mm'; }
+              },
+              grid: { drawOnChartArea: false },
+              min: 0
+            },
+            yTemp: {
+              type: 'linear',
+              position: 'left',
+              title: { display: true, text: 'Temperatura (°C)', color: 'rgba(231,76,60,1)', font: { size: 10 } },
+              ticks: { color: 'rgba(100,100,100,0.8)', font: { size: 10 },
+                callback: function(v) { return v + '°'; }
+              },
+              grid: { color: 'rgba(0,0,0,0.04)' }
+            }
+          }
+        }
+      });
+    }
+
+    // Crea un grafico storico per ogni location che ha soil_dryness
+    {% for location in locations_data %}
+    {% if location.soil_dryness and location.soil_dryness.history %}
+    createHistoryChart('historyChart{{ loop.index }}', {{ location.soil_dryness.history | tojson }});
+    {% endif %}
+    {% endfor %}
   </script>
 </body>
 </html>

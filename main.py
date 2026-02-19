@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from locations import LOCATIONS
-from weather_client import fetch_weather
+from weather_client import fetch_weather, fetch_weather_history
 from scraper import get_all_alerts
 from strava_client import fetch_starred_segments
 from counter import increment_visit
@@ -248,6 +248,149 @@ async def fetch_form_feedbacks():
         print(f"Errore recupero feedbacks: {e}")
         return []
 
+
+def calculate_soil_dryness(history_daily):
+    """
+    Calcola l'indice di asciugatura del terreno dagli ultimi 14 giorni.
+
+    Logica:
+    - Conta i giorni consecutivi (partendo da ieri) con pioggia < 2mm (soglia "asciutto")
+    - Calcola anche la pioggia totale degli ultimi 7 e 14 giorni
+    - Restituisce un rating: dry / damp / wet / saturated
+
+    La soglia 2mm è conservativa per terreno MTB: sotto quel valore
+    la pioggia evapora in giornata senza saturare il suolo.
+    """
+    precip = history_daily.get("daily", {}).get("precipitation_sum", [])
+    dates  = history_daily.get("daily", {}).get("time", [])
+
+    if not precip:
+        return None
+
+    # Giorni secchi consecutivi (da ieri a ritroso)
+    dry_days = 0
+    for p in reversed(precip):
+        if p is None or p < 2.0:
+            dry_days += 1
+        else:
+            break
+
+    rain_7d  = sum(p for p in precip[-7:]  if p is not None)
+
+    # Rating terreno basato sulla pioggia degli ultimi 7 giorni
+    if rain_7d < 5:
+        rating = "dry";       label = "Asciutto";  color = "#27ae60"
+    elif rain_7d < 15:
+        rating = "damp";      label = "Umido";     color = "#f7b733"
+    elif rain_7d < 35:
+        rating = "wet";       label = "Bagnato";   color = "#e67e22"
+    else:
+        rating = "saturated"; label = "Saturo";    color = "#e74c3c"
+
+    # Storico giornaliero formattato per il grafico frontend
+    history_chart = []
+    for i, (d, p) in enumerate(zip(dates, precip)):
+        try:
+            dt = datetime.fromisoformat(d)
+            history_chart.append({
+                "date":  dt.strftime("%d/%m"),
+                "day":   dt.strftime("%a").replace("Mon","Lun").replace("Tue","Mar")
+                             .replace("Wed","Mer").replace("Thu","Gio").replace("Fri","Ven")
+                             .replace("Sat","Sab").replace("Sun","Dom"),
+                "precip": round(p, 1) if p is not None else 0,
+                "temp_max": round(history_daily["daily"].get("temperature_2m_max", [None]*len(dates))[i] or 0, 1),
+                "temp_min": round(history_daily["daily"].get("temperature_2m_min", [None]*len(dates))[i] or 0, 1),
+            })
+        except Exception:
+            continue
+
+    return {
+        "dry_days": dry_days,
+        "rain_7d":  round(rain_7d, 1),
+        "rating":   rating,
+        "label":    label,
+        "color":    color,
+        "history":  history_chart,
+    }
+
+
+def adjust_windows_for_soil(windows, soil_dryness, hourly_data=None):
+    """
+    Abbassa il rating delle finestre in base allo stato del terreno,
+    con recupero progressivo giorno per giorno se non piove.
+
+    Logica:
+      - Giorno 1: applica il rating del terreno attuale invariato
+      - Giorno 2: se nelle 24h precedenti la previsione mostra <2mm totali
+                  il terreno recupera un livello (saturo→bagnato, bagnato→umido)
+      - Giorno 3: stesso meccanismo sulle 24h ulteriori
+
+    Livelli terreno: saturated > wet > damp > dry
+    Cap sul rating meteo:
+      saturated → max poor  (🔴)
+      wet       → max good  (🟡)
+      damp      → invariato
+    """
+    if not soil_dryness or not windows:
+        return windows
+
+    base_rating = soil_dryness.get("rating")
+    if base_rating not in ("saturated", "wet"):
+        return windows
+
+    # Costruisce un dizionario {date: precip_totale} dalle previsioni orarie
+    daily_forecast_precip = {}
+    if hourly_data:
+        for i, time_str in enumerate(hourly_data.get("time", [])):
+            try:
+                dt = datetime.fromisoformat(time_str)
+                day = dt.date()
+                p   = hourly_data["precipitation"][i] if i < len(hourly_data.get("precipitation", [])) else 0
+                daily_forecast_precip[day] = daily_forecast_precip.get(day, 0) + (p or 0)
+            except Exception:
+                continue
+
+    # Progressione: per ogni giorno successivo al primo,
+    # se la giornata precedente ha <2mm previsti → il terreno recupera un livello
+    LEVELS = ["saturated", "wet", "damp", "dry"]
+
+    adjusted = []
+    for idx, w in enumerate(windows):
+        w = dict(w)
+        effective_rating = base_rating
+
+        if idx > 0 and daily_forecast_precip:
+            # Calcola la data del giorno corrente dalla finestra
+            try:
+                window_date = datetime.strptime(w["date"], "%d %b").replace(year=datetime.now().year).date()
+            except Exception:
+                window_date = None
+
+            # Per ogni giorno passato tra oggi e questa finestra, controlla se è stato secco
+            now_date = datetime.now().date()
+            if window_date:
+                level_idx = LEVELS.index(effective_rating)
+                check_date = now_date + timedelta(days=1)  # parto da domani
+                while check_date < window_date and level_idx < len(LEVELS) - 1:
+                    precip_day = daily_forecast_precip.get(check_date, 0)
+                    if precip_day < 2.0:
+                        level_idx += 1  # recupera un livello
+                    check_date += timedelta(days=1)
+                effective_rating = LEVELS[level_idx]
+
+        # Applica il cap in base al rating effettivo del terreno
+        if effective_rating == "saturated":
+            w["rating"]      = "poor"
+            w["rating_icon"] = "🔴"
+        elif effective_rating == "wet":
+            if w["rating"] == "excellent":
+                w["rating"]      = "good"
+                w["rating_icon"] = "🟡"
+        # damp/dry → invariato
+
+        adjusted.append(w)
+    return adjusted
+
 # ─── Routes ──────────────────────────────────────────────────────────────────
 @app.get("/")
 def root():
@@ -285,22 +428,39 @@ async def dashboard_completa(request: Request):
     overall_trail_conditions = None
     overall_riding_windows   = None
 
+    soil_dryness = None
+
     for loc_key, loc_info in LOCATIONS.items():
         data   = await fetch_weather(loc_info["lat"], loc_info["lon"])
         hourly = data["hourly"]
         if overall_trail_conditions is None:
             overall_trail_conditions = calculate_trail_conditions(hourly)
             overall_riding_windows   = find_best_riding_windows(hourly)
+
+        # Storico precipitazioni per ogni località
+        loc_soil_dryness = None
+        try:
+            history = await fetch_weather_history(loc_info["lat"], loc_info["lon"], days=7)
+            loc_soil_dryness = calculate_soil_dryness(history)
+            if soil_dryness is None:
+                soil_dryness = loc_soil_dryness  # mantieni il primo per compatibilità
+                # Aggiusta le finestre in base allo stato del terreno
+                overall_riding_windows = adjust_windows_for_soil(overall_riding_windows, soil_dryness, hourly)
+        except Exception as e:
+            print(f"⚠️ Storico meteo non disponibile per {loc_info['name']}: {e}")
+
         all_data.append({
             "name": loc_info["name"], "elevation": loc_info["elevation"],
             "hourly": {k: hourly.get(k, []) for k in ["time","temperature_2m","precipitation","weather_code","windspeed_10m","windgusts_10m"]},
+            "soil_dryness": loc_soil_dryness,
         })
 
     return templates.TemplateResponse("dashboard_completa.html", {
         "request": request,
-        "locations_data": all_data,
+        "locations_data":   all_data,
         "trail_conditions": overall_trail_conditions,
         "riding_windows":   overall_riding_windows,
+        "soil_dryness":     soil_dryness,
         "visit_stats":      visit_stats,
     })
 
@@ -341,10 +501,14 @@ async def percorsi(request: Request):
             "riding_windows": riding_windows,
         })
 
-    starred_segments = await fetch_starred_segments()
+    #strava_club_info      = await fetch_club_info()
+    #strava_all_activities = await fetch_all_club_activities()
+    starred_segments      = await fetch_starred_segments()
 
     return templates.TemplateResponse("percorsi.html", {
-        "request":          request,
-        "gpx_forecasts":    gpx_forecasts,
-        "starred_segments": starred_segments,
+        "request":              request,
+        "gpx_forecasts":        gpx_forecasts,
+        #"strava_club_info":     strava_club_info,
+        #"strava_all_activities": strava_all_activities,
+        "starred_segments":     starred_segments,
     })
