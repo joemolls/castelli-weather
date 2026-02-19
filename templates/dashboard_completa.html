@@ -2,8 +2,15 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MTB Meteo">
+  <meta name="theme-color" content="#2c3e50">
   <title>Castelli Romani - Previsioni Meteo MTB</title>
   <link rel="icon" href="https://em-content.zobj.net/thumbs/120/apple/354/mountain_26f0-fe0f.png" type="image/png">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
   <style>
     body { 
       font-family: Arial, sans-serif; 
@@ -560,6 +567,17 @@
 
   </footer>
   
+  <script>
+    // ── Registrazione Service Worker (PWA) ───────────────────────────────────
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/service_worker.js')
+          .then(reg => console.log('✅ Service Worker registrato:', reg.scope))
+          .catch(err => console.warn('⚠️ Service Worker non registrato:', err));
+      });
+    }
+  </script>
+
   <script>
     // Mostra l'ora corrente di aggiornamento
     const now = new Date();
