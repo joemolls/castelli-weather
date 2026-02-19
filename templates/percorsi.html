@@ -55,6 +55,24 @@
     }
     .btn-osm:hover:not(:disabled) { background: #95a5a6; color: white; }
     .btn-osm:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-osm.active-osm { border-color: #27ae60; color: #27ae60; }
+    .btn-osm.active-osm:hover:not(:disabled) { background: #27ae60; color: white; }
+
+    /* Legenda OSM */
+    #osmLegend {
+      display: none;
+      margin-top: 8px; padding: 8px 12px;
+      background: #f8f9fa; border-radius: 6px; border-left: 3px solid #27ae60;
+      font-size: 11px;
+    }
+    #osmLegend .osm-legend-title {
+      font-weight: bold; color: #2c3e50; margin-bottom: 5px; font-size: 12px;
+    }
+    .osm-legend-items { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+    .osm-legend-item  { display: flex; align-items: center; gap: 5px; }
+    .osm-legend-line  { width: 28px; height: 4px; border-radius: 2px; flex-shrink: 0; }
+    .osm-legend-line.thick { height: 6px; }
+    .osm-legend-label { color: #555; }
 
     /* Lista percorsi GPX */
     .gpx-list {
@@ -177,6 +195,23 @@
     .segment-link:hover { text-decoration: underline; }
     .strava-logo { color: #fc4c02; font-weight: bold; }
 
+    /* Cache badge */
+    #cacheBadge {
+      display: none;
+      align-items: center; gap: 8px;
+      font-size: 11px; color: #7f8c8d;
+    }
+    #cacheBadge .cache-info {
+      background: #f0faf4; border: 1px solid #27ae60; color: #27ae60;
+      padding: 3px 10px; border-radius: 12px; font-weight: bold;
+    }
+    #cacheRefreshBtn {
+      background: none; border: 1px solid #bdc3c7; color: #7f8c8d;
+      padding: 3px 10px; border-radius: 12px; cursor: pointer;
+      font-size: 11px; transition: all 0.15s;
+    }
+    #cacheRefreshBtn:hover { background: #ecf0f1; }
+
     footer {
       text-align: center; margin-top: 10px; color: #95a5a6; font-size: 12px;
       padding: 12px; background: white; border-radius: 8px;
@@ -202,13 +237,52 @@
 
 <div class="main-container">
 
+  <!-- LOADING OVERLAY -->
+  <div id="loadingOverlay" class="card" style="text-align:center; padding: 30px 20px;">
+    <div style="font-size: 20px; font-weight: bold; color: #2c3e50; margin-bottom: 20px;">
+      🔄 Inizializzazione dashboard percorsi...
+    </div>
+    <div id="loadingSteps" style="display:inline-block; text-align:left; font-size:14px; line-height:2;">
+      <div id="step1" style="color:#95a5a6;">🔍 Recupero segmenti starred Strava...</div>
+      <div id="step2" style="color:#95a5a6; display:none;">⭐ Trovati {{ starred_segments | length }} segmenti</div>
+      <div id="step3" style="color:#95a5a6; display:none;">🗺️ Inizializzazione mappa...</div>
+    </div>
+    <div id="loadingBar" style="margin-top:20px; background:#ecf0f1; border-radius:10px; height:8px; overflow:hidden;">
+      <div id="loadingProgress" style="height:100%; width:0%; background:linear-gradient(90deg,#667eea,#764ba2); border-radius:10px; transition: width 0.4s ease;"></div>
+    </div>
+  </div>
+
+  <!-- MAPPA (nascosta finché carica) -->
+  <div id="mainContent" style="display:none;">
   <!-- MAPPA -->
   <div class="card">
     <div class="card-title">Mappa Percorsi</div>
     <div id="map"></div>
     <div class="map-footer">
       <span id="mapStatus">Caricamento GPX...</span>
-      <button class="btn-osm" id="btnOSM" onclick="loadOSM(this)">+ Carica sentieri OSM</button>
+      <div id="cacheBadge">
+        <span class="cache-info" id="cacheInfo"></span>
+        <button id="cacheRefreshBtn" onclick="forceRefresh()">↺ Aggiorna dati</button>
+      </div>
+      <button class="btn-osm" id="btnOSM" onclick="toggleOSM(this)">+ Carica sentieri OSM</button>
+    </div>
+    <!-- Legenda OSM — visibile solo dopo caricamento -->
+    <div id="osmLegend">
+      <div class="osm-legend-title">🗺️ Sentieri OpenStreetMap — clicca il pulsante per mostrare/nascondere</div>
+      <div class="osm-legend-items">
+        <div class="osm-legend-item">
+          <div class="osm-legend-line" style="background:#f39c12"></div>
+          <span class="osm-legend-label">MTB</span>
+        </div>
+        <div class="osm-legend-item">
+          <div class="osm-legend-line" style="background:#1abc9c"></div>
+          <span class="osm-legend-label">Hiking / Sentieri CAI</span>
+        </div>
+        <div class="osm-legend-item">
+          <div class="osm-legend-line thick" style="background:#c0392b"></div>
+          <span class="osm-legend-label">Via Francigena</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -232,7 +306,7 @@
                data-polyline="{{ seg.polyline }}"
                data-start="{{ seg.start_latlng | tojson }}"
                data-end="{{ seg.end_latlng | tojson }}"
-               onclick="activateSegment({{ seg.id }}, '{{ seg.name | replace("'", "\'") }}', this)">
+               onclick="activateSegment({{ seg.id }}, this)">
             <div class="seg-pill-name">{{ seg.name }}</div>
             <div class="seg-pill-row">
               {{ seg.distance_km }} km &middot; {{ seg.avg_grade }}% &middot; {{ seg.elevation_gain }}m &middot; <span class="kom">KOM: {{ seg.kom }}</span>{% if seg.pr_time and seg.pr_time != 'N/A' %} &middot; <span class="pr">PR: {{ seg.pr_time }}</span>{% endif %} &middot; {{ "{:,}".format(seg.effort_count) }} tent.
@@ -290,6 +364,8 @@
     {% endfor %}
   </div>
 
+  </div><!-- fine mainContent -->
+
   <footer>
     <strong>Tracciati:</strong> <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a>
     &nbsp;&middot;&nbsp;
@@ -305,27 +381,25 @@
 //  CONFIGURAZIONE GPX — colori identici a main.py
 // ============================================================
 var GPX_FILES = [
-  { key: 'gpx-0', file: '/static/gpx/AeB_AmiciBici_C.R.1.gpx',  name: 'AeB Amici Bici C.R.',     color: '#e74c3c' },
-  { key: 'gpx-1', file: '/static/gpx/Like_Epic_100_C.R.6.gpx',  name: 'Like Epic 100 C.R.',       color: '#e67e22' },
-  { key: 'gpx-2', file: '/static/gpx/Like_Epic_50_C.R.4.gpx',   name: 'Like Epic 50 C.R.',        color: '#2980b9' },
-  { key: 'gpx-3', file: '/static/gpx/Monte_Cavo_Colle_Iano.gpx', name: 'Monte Cavo - Colle Jano', color: '#27ae60' },
+  { key: 'gpx-0', file: '/static/gpx/AeB_AmiciBici_C.R.1.gpx',  name: 'Amici & Bici C.R.1',        color: '#27ae60' },
+  { key: 'gpx-1', file: '/static/gpx/Like_Epic_100_C.R.6.gpx',  name: 'Like Epic 100 C.R.6',       color: '#e67e22' },
+  { key: 'gpx-2', file: '/static/gpx/Like_Epic_50_C.R.4.gpx',   name: 'Like Epic 50 C.R.4',        color: '#2980b9' },
+  { key: 'gpx-3', file: '/static/gpx/Monte_Cavo_Colle_Iano.gpx', name: 'Monte Cavo - Colle Jano', color: '#e74c3c' },
   { key: 'gpx-4', file: '/static/gpx/P2P_Castelli_Romani.gpx',  name: 'P2P Castelli Romani',      color: '#8e44ad' }
 ];
 
 // ============================================================
 //  STATO
 // ============================================================
-var loadedCount   = 0;       // GPX caricati con successo
-var activeKey     = null;    // key del percorso attivo (o null = tutti)
-var activeLabel   = null;    // tooltip sulla mappa
+var loadedCount   = 0;
+var activeKey     = null;
+var activeLabel   = null;
 var osmLoaded     = false;
+var osmVisible    = false;  // OSM attualmente visibile sulla mappa
 
-// Struttura dati per ogni GPX caricato
-// gpxData[key] = { info, polylines: [L.Polyline], bounds: L.LatLngBounds }
 var gpxData = {};
 GPX_FILES.forEach(function(g) { gpxData[g.key] = { info: g, polylines: [], bounds: null }; });
 
-// OSM layers separati
 var osmLayer = L.layerGroup();
 
 // ============================================================
@@ -337,78 +411,90 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18
 }).addTo(map);
 
-// Un singolo layerGroup per tutti i GPX (aggiungiamo/togliamo le singole polyline)
 var gpxLayer = L.layerGroup().addTo(map);
 
-map.on('click', function() { deactivate(); });
+map.on('click', function() { deactivate(); deactivateSegment(); });
 
 // ============================================================
-//  GESTIONE ATTIVAZIONE / DISATTIVAZIONE
+//  HELPERS OSM VISIBILITY
+// ============================================================
+function _osmShow() {
+  if (osmLoaded && !osmVisible) {
+    // Sbiadisci GPX quando OSM è attivo
+    GPX_FILES.forEach(function(g) {
+      gpxData[g.key].polylines.forEach(function(pl) {
+        pl.setStyle({ opacity: 0.12, weight: 2 });
+      });
+    });
+    osmLayer.addTo(map);
+    osmVisible = true;
+    document.getElementById('osmLegend').style.display = 'block';
+    var btn = document.getElementById('btnOSM');
+    if (btn) btn.classList.add('active-osm');
+  }
+}
+
+function _osmHide() {
+  if (osmVisible) {
+    map.removeLayer(osmLayer);
+    osmVisible = false;
+    document.getElementById('osmLegend').style.display = 'none';
+    var btn = document.getElementById('btnOSM');
+    if (btn) btn.classList.remove('active-osm');
+    // Ripristina opacità GPX
+    GPX_FILES.forEach(function(g) {
+      gpxData[g.key].polylines.forEach(function(pl) {
+        pl.setStyle({ opacity: 0.85, weight: 4 });
+      });
+    });
+  }
+}
+
+// ============================================================
+//  GESTIONE ATTIVAZIONE / DISATTIVAZIONE GPX
 // ============================================================
 function activate(key) {
-  if (activeKey === key) {
-    deactivate();
-    return;
-  }
+  if (activeKey === key) { deactivate(); return; }
   activeKey = key;
 
-  // Rimuovi label precedente
+  // Nascondi OSM quando si seleziona un percorso GPX
+  _osmHide();
+
   if (activeLabel) { map.removeLayer(activeLabel); activeLabel = null; }
 
-  // Sbiadisci tutti, evidenzia solo il selezionato
+  // Stile polyline: evidenzia solo il selezionato
   GPX_FILES.forEach(function(g) {
     var entry = gpxData[g.key];
     entry.polylines.forEach(function(pl) {
-      if (g.key === key) {
-        pl.setStyle({ opacity: 1, weight: 5 });
-      } else {
-        pl.setStyle({ opacity: 0.08, weight: 2 });
-      }
+      pl.setStyle(g.key === key
+        ? { opacity: 1, weight: 5 }
+        : { opacity: 0.08, weight: 2 });
     });
-  });
-
-  // Aggiorna pills
-  GPX_FILES.forEach(function(g) {
     var pill = document.getElementById('pill-' + g.key);
     if (!pill) return;
-    if (g.key === key) {
-      pill.classList.add('active');
-      pill.classList.remove('dimmed');
-    } else {
-      pill.classList.add('dimmed');
-      pill.classList.remove('active');
-    }
+    if (g.key === key) { pill.classList.add('active');  pill.classList.remove('dimmed'); }
+    else               { pill.classList.add('dimmed'); pill.classList.remove('active'); }
   });
 
-  // Zoom + label
   var entry = gpxData[key];
   if (entry.bounds && entry.bounds.isValid()) {
     map.fitBounds(entry.bounds, { padding: [40, 40], maxZoom: 14 });
-
-    activeLabel = L.tooltip({
-      permanent: true, direction: 'top', className: 'trail-label', offset: [0, 0]
-    })
-    .setContent(entry.info.name)
-    .setLatLng(entry.bounds.getCenter())
-    .addTo(map);
+    activeLabel = L.tooltip({ permanent: true, direction: 'top', className: 'trail-label', offset: [0, 0] })
+      .setContent(entry.info.name).setLatLng(entry.bounds.getCenter()).addTo(map);
   }
-
   updateHint(key);
 }
 
 function deactivate() {
   activeKey = null;
   if (activeLabel) { map.removeLayer(activeLabel); activeLabel = null; }
-
-  // Ripristina tutti
   GPX_FILES.forEach(function(g) {
     gpxData[g.key].polylines.forEach(function(pl) {
       pl.setStyle({ opacity: 0.85, weight: 4 });
     });
     var pill = document.getElementById('pill-' + g.key);
-    if (pill) { pill.classList.remove('active', 'dimmed'); }
+    if (pill) pill.classList.remove('active', 'dimmed');
   });
-
   updateHint(null);
 }
 
@@ -512,39 +598,201 @@ function renderGPXList() {
 }
 
 // ============================================================
-//  OSM ON-DEMAND
+//  CACHE localStorage — segmenti Strava
+// ============================================================
+var CACHE_KEY    = 'percorsi_cache_v1';
+var CACHE_TTL_MS = 24 * 60 * 60 * 1000;  // 24 ore
+
+function saveToCache() {
+  try {
+    // Serializza tutti i seg-pill dal DOM
+    var pills = [];
+    document.querySelectorAll('.seg-pill').forEach(function(el) {
+      pills.push({
+        id:        el.getAttribute('data-id'),
+        name:      el.getAttribute('data-name'),
+        polyline:  el.getAttribute('data-polyline'),
+        start:     el.getAttribute('data-start'),
+        end:       el.getAttribute('data-end'),
+        html:      el.outerHTML
+      });
+    });
+    var payload = {
+      ts:    Date.now(),
+      pills: pills
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+    console.log('[cache] Salvati', pills.length, 'segmenti in localStorage');
+  } catch(e) {
+    console.warn('[cache] Errore salvataggio:', e);
+  }
+}
+
+function loadFromCache() {
+  try {
+    var raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    var data = JSON.parse(raw);
+    if (!data.ts || !data.pills) return null;
+    var age = Date.now() - data.ts;
+    if (age > CACHE_TTL_MS) { localStorage.removeItem(CACHE_KEY); return null; }
+    return data;
+  } catch(e) {
+    return null;
+  }
+}
+
+function showCacheBadge(ts) {
+  var badge = document.getElementById('cacheBadge');
+  if (!badge) return;
+  badge.style.display = 'flex';
+  var d = new Date(ts);
+  var fmt = d.toLocaleDateString('it-IT', { day:'numeric', month:'short' })
+          + ' ' + d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+  document.getElementById('cacheInfo').textContent = '📦 Cache ' + fmt;
+}
+
+function forceRefresh() {
+  localStorage.removeItem(CACHE_KEY);
+  window.location.reload();
+}
+
+function revealPage() {
+  document.getElementById('loadingOverlay').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+  if (typeof map !== 'undefined') {
+    setTimeout(function() { map.invalidateSize(); }, 100);
+  }
+}
+
+// ============================================================
+//  LOADING — usa cache se disponibile, altrimenti animazione
+// ============================================================
+(function() {
+  var cached = loadFromCache();
+
+  if (cached && cached.pills.length > 0) {
+    // ✅ CACHE HIT — mostra subito senza attendere
+    console.log('[cache] Hit! Età:', Math.round((Date.now() - cached.ts) / 60000), 'min');
+
+    // Inietta le pill dal cache nel DOM (sovrascrive quelle Jinja se ci sono)
+    var segList = document.getElementById('segList');
+    if (segList && cached.pills.length > 0) {
+      segList.innerHTML = cached.pills.map(function(p) { return p.html; }).join('');
+      // Re-attacca gli onclick (rimossi da innerHTML)
+      segList.querySelectorAll('.seg-pill').forEach(function(el) {
+        var id = parseInt(el.getAttribute('data-id'), 10);
+        el.onclick = function() { activateSegment(id, el); };
+      });
+    }
+
+    revealPage();
+    showCacheBadge(cached.ts);
+    return;
+  }
+
+  // ❌ CACHE MISS — animazione normale
+  console.log('[cache] Miss — caricamento da server');
+  var steps = [
+    { id: 'step1', delay: 0,   progress: 30 },
+    { id: 'step2', delay: 500, progress: 70 },
+    { id: 'step3', delay: 900, progress: 90 },
+  ];
+  var colors = { done: '#27ae60', active: '#2c3e50' };
+
+  steps.forEach(function(s, i) {
+    setTimeout(function() {
+      var el = document.getElementById(s.id);
+      if (!el) return;
+      el.style.display = 'block';
+      el.style.color = colors.active;
+      if (i > 0) {
+        var prev = document.getElementById(steps[i-1].id);
+        if (prev) prev.style.color = colors.done;
+      }
+      document.getElementById('loadingProgress').style.width = s.progress + '%';
+    }, s.delay);
+  });
+
+  setTimeout(function() {
+    document.getElementById('loadingProgress').style.width = '100%';
+    var last = document.getElementById(steps[steps.length-1].id);
+    if (last) last.style.color = colors.done;
+    setTimeout(function() {
+      revealPage();
+      // Salva in cache dopo il primo carico riuscito
+      saveToCache();
+    }, 400);
+  }, 1400);
+})();
+
+// ============================================================
+//  OSM — toggle (mostra/nascondi) + caricamento on-demand
 // ============================================================
 var S = 41.68, W = 12.63, N = 41.82, E = 12.82;
 
+function toggleOSM(btn) {
+  if (osmLoaded) {
+    // Già caricato: toggle visibilità
+    if (osmVisible) {
+      _osmHide();
+      btn.textContent = '+ Mostra sentieri OSM';
+    } else {
+      _osmShow();
+      btn.textContent = '👁 Nascondi sentieri OSM';
+    }
+    return;
+  }
+  // Prima volta: carica
+  loadOSM(btn);
+}
+
 async function loadOSM(btn) {
-  if (osmLoaded) return;
-  btn.disabled = true; btn.textContent = 'Caricamento OSM...';
+  btn.disabled = true;
+  btn.textContent = 'Caricamento OSM...';
   var statusEl = document.getElementById('mapStatus');
 
-  var q = '[out:json][timeout:90];\n(\n'
-        + '  relation["route"="hiking"]["name"](' + S + ',' + W + ',' + N + ',' + E + ');\n'
-        + '  relation["route"="foot"]["name"]('   + S + ',' + W + ',' + N + ',' + E + ');\n'
+  // Query Overpass — solo MTB + hiking, senza foot (più leggera)
+  var q = '[out:json][timeout:60];\n(\n'
         + '  relation["route"="mtb"]["name"]('    + S + ',' + W + ',' + N + ',' + E + ');\n'
-        + ');\nout geom;';
+        + '  relation["route"="hiking"]["name"](' + S + ',' + W + ',' + N + ',' + E + ');\n'
+        + ');\nout geom qt;';
 
-  var servers = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
-  var resp = null; var lastErr = '';
+  var servers = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.openstreetmap.ru/api/interpreter'
+  ];
 
+  var resp = null;
   for (var i = 0; i < servers.length; i++) {
     try {
-      statusEl.textContent = 'OSM: server ' + (i+1) + '/' + servers.length + '...';
+      statusEl.textContent = 'OSM: tentativo ' + (i+1) + '/' + servers.length + '...';
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 25000); // 25s per server
       var r = await fetch(servers[i], {
-        method: 'POST', body: 'data=' + encodeURIComponent(q),
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(q),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       if (r.ok) { resp = r; break; }
-      lastErr = 'HTTP ' + r.status;
-    } catch(e) { lastErr = e.message; }
+      statusEl.textContent = 'OSM server ' + (i+1) + ' non disponibile (HTTP ' + r.status + ')';
+    } catch(e) {
+      if (e.name === 'AbortError') {
+        statusEl.textContent = 'OSM server ' + (i+1) + ' troppo lento, provo il prossimo...';
+      } else {
+        statusEl.textContent = 'OSM server ' + (i+1) + ' errore: ' + e.message;
+      }
+    }
   }
 
   if (!resp) {
-    statusEl.textContent = 'Errore OSM: ' + lastErr;
-    btn.disabled = false; btn.textContent = '+ Carica sentieri OSM'; return;
+    statusEl.textContent = '❌ Sentieri OSM non disponibili al momento. Riprova tra poco.';
+    btn.disabled = false;
+    btn.textContent = '↺ Riprova sentieri OSM';
+    return;
   }
 
   try {
@@ -553,35 +801,45 @@ async function loadOSM(btn) {
     var count = 0;
 
     (data.elements || []).filter(function(e) { return e.type === 'relation'; }).forEach(function(rel) {
-      var tags  = rel.tags || {};
-      var name  = tags.name || tags.ref || ('OSM #' + rel.id);
-      var n     = name.toLowerCase(); var rf = (tags.ref || '').toLowerCase();
-      var cat   = (n.indexOf('francigena') >= 0 || rf.indexOf('vf') >= 0) ? 'francigena'
-                : ((tags.route === 'mtb' || n.indexOf('mtb') >= 0) ? 'mtb' : 'hiking');
-      var color = OSM_COLORS[cat];
-      var drawn = 0;
+      var tags = rel.tags || {};
+      var name = tags.name || tags.ref || ('OSM #' + rel.id);
+      var n    = name.toLowerCase();
+      var rf   = (tags.ref || '').toLowerCase();
+      var cat  = (n.indexOf('francigena') >= 0 || rf.indexOf('vf') >= 0) ? 'francigena'
+               : (tags.route === 'mtb' || n.indexOf('mtb') >= 0) ? 'mtb' : 'hiking';
+      var color  = OSM_COLORS[cat];
+      var drawn  = 0;
 
       (rel.members || []).filter(function(m) {
         return m.type === 'way' && m.geometry && m.geometry.length > 1;
       }).forEach(function(m) {
         var pl = L.polyline(m.geometry.map(function(p) { return [p.lat, p.lon]; }), {
-          color: color, weight: cat === 'francigena' ? 4 : 2, opacity: 0.7,
-          lineJoin: 'round', lineCap: 'round'
+          color: color, weight: cat === 'francigena' ? 4 : 2,
+          opacity: 0.75, lineJoin: 'round', lineCap: 'round'
         });
-        pl.bindPopup('<b>' + name + '</b><br><small>' + cat + '</small>');
+        pl.bindPopup('<b>' + name + '</b><br><small style="color:#888">' + cat + ' — OpenStreetMap</small>');
         pl.addTo(osmLayer);
         drawn++;
       });
       if (drawn > 0) count++;
     });
 
-    osmLayer.addTo(map);
+    if (count === 0) {
+      statusEl.textContent = 'OSM: nessun sentiero trovato nell\'area.';
+      btn.disabled = false;
+      btn.textContent = '↺ Riprova sentieri OSM';
+      return;
+    }
+
     osmLoaded = true;
-    btn.textContent = 'OSM caricato (' + count + ')';
+    _osmShow();
+    btn.textContent = '👁 Nascondi sentieri OSM';
+    btn.disabled = false;
     statusEl.textContent = GPX_FILES.length + ' GPX + ' + count + ' sentieri OSM';
   } catch(e) {
-    statusEl.textContent = 'Errore parsing OSM: ' + e.message;
-    btn.disabled = false; btn.textContent = '+ Riprova OSM';
+    statusEl.textContent = '❌ Errore parsing dati OSM: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = '↺ Riprova sentieri OSM';
   }
 }
 
@@ -605,77 +863,80 @@ function decodePolyline(encoded) {
   return result;
 }
 
-var activeSegKey  = null;   // id segmento attivo
-var segLayer      = L.layerGroup().addTo(map);  // layer dedicato ai segmenti
+var activeSegKey = null;
+var segLayer     = L.layerGroup().addTo(map);
 
-function activateSegment(id, name, el) {
+function activateSegment(id, el) {
   // Toggle
-  if (activeSegKey === id) {
-    deactivateSegment();
-    return;
-  }
+  if (activeSegKey === id) { deactivateSegment(); return; }
   deactivateSegment();
   activeSegKey = id;
+  // Leggi name dal data attribute — evita problemi con apostrofi nel nome
+  var name = el.getAttribute('data-name') || el.querySelector('.seg-pill-name').textContent || String(id);
+
+  // Nascondi OSM quando si seleziona un segmento Strava
+  _osmHide();
 
   // Highlight pill
   document.querySelectorAll('.seg-pill').forEach(function(p) { p.classList.add('dimmed'); });
   el.classList.remove('dimmed');
   el.classList.add('active');
 
-  // Leggi polyline dal data attribute
   var polylineStr = el.getAttribute('data-polyline');
   var startRaw    = el.getAttribute('data-start');
   var endRaw      = el.getAttribute('data-end');
 
   segLayer.clearLayers();
+  if (activeLabel) { map.removeLayer(activeLabel); activeLabel = null; }
 
-  if (polylineStr && polylineStr.length > 5) {
-    // Usa la polyline completa del segmento
-    var coords = decodePolyline(polylineStr);
-    if (coords.length > 1) {
-      var pl = L.polyline(coords, {
-        color: '#fc4c02', weight: 5, opacity: 1,
-        lineJoin: 'round', lineCap: 'round'
-      }).bindPopup('<b>' + name + '</b><br><small style="color:#fc4c02">Strava Segment</small>');
-      pl.addTo(segLayer);
+  var placed = false;
 
-      var bounds = pl.getBounds();
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+  // Prova 1: polyline encoded Strava
+  if (polylineStr && polylineStr.trim().length > 4) {
+    try {
+      var coords = decodePolyline(polylineStr.trim());
+      if (coords.length > 1) {
+        var pl = L.polyline(coords, {
+          color: '#fc4c02', weight: 5, opacity: 1, lineJoin: 'round', lineCap: 'round'
+        }).bindPopup('<b>' + name + '</b><br><small style="color:#fc4c02">Strava Segment</small>');
+        pl.addTo(segLayer);
+        var bounds = pl.getBounds();
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+          activeLabel = L.tooltip({ permanent: true, direction: 'top', className: 'trail-label', offset: [0, 0] })
+            .setContent(name).setLatLng(bounds.getCenter()).addTo(map);
+        }
+        placed = true;
       }
+    } catch(e) { console.warn('Decode polyline error:', e); }
+  }
 
-      // Label
-      if (activeLabel) { map.removeLayer(activeLabel); activeLabel = null; }
-      activeLabel = L.tooltip({
-        permanent: true, direction: 'top', className: 'trail-label', offset: [0, 0]
-      })
-      .setContent(name)
-      .setLatLng(bounds.getCenter())
-      .addTo(map);
-    }
-  } else if (startRaw && endRaw) {
-    // Fallback: linea retta start→end
+  // Prova 2: linea retta start → end
+  if (!placed && startRaw && endRaw) {
     try {
       var start = JSON.parse(startRaw);
       var end   = JSON.parse(endRaw);
-      if (start.length === 2 && end.length === 2) {
+      if (Array.isArray(start) && start.length === 2 && Array.isArray(end) && end.length === 2) {
         var pl = L.polyline([start, end], {
           color: '#fc4c02', weight: 5, opacity: 1, dashArray: '8,4'
         }).bindPopup('<b>' + name + '</b>').addTo(segLayer);
-
         L.circleMarker(start, { radius: 7, color: '#27ae60', fillColor: '#27ae60', fillOpacity: 1 })
           .bindPopup('Inizio: ' + name).addTo(segLayer);
         L.circleMarker(end, { radius: 7, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 1 })
           .bindPopup('Fine: ' + name).addTo(segLayer);
-
         map.fitBounds(pl.getBounds(), { padding: [60, 60], maxZoom: 15 });
+        placed = true;
       }
     } catch(e) { console.warn('Errore coordinate segmento:', e); }
   }
 
-  updateHint(null);  // reset hint GPX
   var hintBar = document.getElementById('hintBar');
-  if (hintBar) hintBar.innerHTML = 'Segmento: <strong>' + name + '</strong> &mdash; clicca di nuovo o sulla mappa per deselezionare';
+  if (!placed) {
+    console.warn('Segmento senza geometria disponibile:', name, '| polyline:', polylineStr, '| start:', startRaw);
+    if (hintBar) hintBar.innerHTML = '⚠️ Geometria non disponibile per: <strong>' + name + '</strong> — dati Strava mancanti';
+  } else {
+    if (hintBar) hintBar.innerHTML = 'Segmento: <strong>' + name + '</strong> &mdash; clicca di nuovo o sulla mappa per deselezionare';
+  }
 }
 
 function deactivateSegment() {
@@ -686,13 +947,6 @@ function deactivateSegment() {
   });
   if (activeLabel) { map.removeLayer(activeLabel); activeLabel = null; }
 }
-
-// Override del click sulla mappa per gestire anche i segmenti
-map.off('click');
-map.on('click', function() {
-  deactivate();
-  deactivateSegment();
-});
 
 // ============================================================
 //  AVVIO

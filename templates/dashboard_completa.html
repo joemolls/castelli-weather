@@ -129,6 +129,50 @@
       margin-top: 6px;
     }
     
+    .condition-legend {
+      margin-top: 8px;
+      border-top: 1px solid #ecf0f1;
+      padding-top: 6px;
+    }
+    .condition-legend-title {
+      font-size: 10px;
+      color: #95a5a6;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .legend-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 6px;
+    }
+    .legend-item {
+      font-size: 10px;
+      color: #555;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      white-space: nowrap;
+    }
+    .legend-mm {
+      color: #95a5a6;
+      font-size: 9px;
+    }
+    
+    .trail-warning-badge {
+      display: inline-block;
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      color: #856404;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-top: 3px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    
     .wind-box-compact {
       flex: 1;
       text-align: center;
@@ -356,6 +400,17 @@
           <div class="label">mm<br>24h</div>
         </div>
       </div>
+      <div class="condition-legend">
+        <div class="condition-legend-title">Legenda precipitazioni</div>
+        <div class="legend-grid">
+          <div class="legend-item">✅ <span>Asciutto <span class="legend-mm">&lt;1mm</span></span></div>
+          <div class="legend-item">🟢 <span>Sentieri OK <span class="legend-mm">&lt;3mm</span></span></div>
+          <div class="legend-item">🟡 <span>Umidità <span class="legend-mm">&lt;5mm</span></span></div>
+          <div class="legend-item">🟠 <span>Bagnati <span class="legend-mm">&lt;10mm</span></span></div>
+          <div class="legend-item">🔴 <span>Fango <span class="legend-mm">&lt;20mm</span></span></div>
+          <div class="legend-item">⛔ <span>Intenso <span class="legend-mm">≥20mm</span></span></div>
+        </div>
+      </div>
     </div>
     
     <!-- Quando Uscire -->
@@ -371,6 +426,9 @@
           <div class="day-window-details">
             🌡️ {{ window.temp | round(0) }}°C · 💨 {{ window.wind | round(0) }} km/h · 💧 {{ window.precip | round(1) }}mm
           </div>
+          {% if loop.first and trail_conditions.rating == 'poor' %}
+          <div class="trail-warning-badge">⚠️ Terreno saturo ({{ trail_conditions.rain_24h | round(1) }}mm/24h) — sentieri danneggiati</div>
+          {% endif %}
         </div>
         {% endfor %}
         {% if riding_windows|length == 0 %}
