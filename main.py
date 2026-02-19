@@ -423,7 +423,7 @@ async def dashboard(request: Request, location: str):
 
 @app.get("/dashboard-completa", response_class=HTMLResponse)
 async def dashboard_completa(request: Request):
-    visit_stats = increment_visit()
+    visit_stats = increment_visit(page="dashboard")
     all_data    = []
     overall_trail_conditions = None
     overall_riding_windows   = None
@@ -466,6 +466,7 @@ async def dashboard_completa(request: Request):
 
 @app.get("/avvisi", response_class=HTMLResponse)
 async def avvisi(request: Request):
+    increment_visit(page="avvisi")
     alerts    = await get_all_alerts()
     feedbacks = await fetch_form_feedbacks()
     return templates.TemplateResponse("avvisi.html", {
@@ -477,6 +478,7 @@ async def avvisi(request: Request):
 @app.get("/percorsi", response_class=HTMLResponse)
 async def percorsi(request: Request):
     """Mappa percorsi GPX con meteo calcolato dal centroide del tracciato + dati Strava"""
+    increment_visit(page="percorsi")
 
     gpx_forecasts = []
     for gpx in GPX_FILES:

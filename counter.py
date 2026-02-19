@@ -1,55 +1,66 @@
-import json
 import os
+import httpx
 from datetime import datetime
 
-COUNTER_FILE = "visit_counter.json"
+UPSTASH_URL   = os.getenv("UPSTASH_REDIS_REST_URL")
+UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN")
 
-def load_counter():
-    """Carica il contatore dal file"""
-    if os.path.exists(COUNTER_FILE):
-        try:
-            with open(COUNTER_FILE, "r") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {
-        "total": 0,
-        "today": 0,
-        "last_date": "",
-        "monthly": {}
-    }
+def _headers():
+    return {"Authorization": f"Bearer {UPSTASH_TOKEN}"}
 
-def save_counter(data):
-    """Salva il contatore nel file"""
+def _redis(*args):
+    """
+    Esegue un comando Redis su Upstash REST API.
+    Esempio: _redis("INCR", "visits:total")
+    """
+    cmd = "/".join(str(a) for a in args)
+    url = f"{UPSTASH_URL}/{cmd}"
     try:
-        with open(COUNTER_FILE, "w") as f:
-            json.dump(data, f)
+        r = httpx.get(url, headers=_headers(), timeout=5.0)
+        r.raise_for_status()
+        return r.json().get("result")
     except Exception as e:
-        print(f"❌ Errore salvataggio contatore: {e}")
+        print(f"⚠️ Upstash Redis error: {e}")
+        return None
 
-def increment_visit():
-    """Incrementa il contatore visite e restituisce le stats"""
-    data = load_counter()
+def increment_visit(page: str = "dashboard"):
+    """
+    Incrementa i contatori visite e restituisce le stats.
+    
+    Chiavi Redis:
+      visits:total              → totale sito (tutte le pagine)
+      visits:day:YYYY-MM-DD     → visite oggi (tutte le pagine)
+      visits:month:YYYY-MM      → visite questo mese (tutte le pagine)
+      visits:page:<page>        → totale per singola pagina
+    """
     today = datetime.now().strftime("%Y-%m-%d")
     month = datetime.now().strftime("%Y-%m")
 
-    # Reset contatore giornaliero se è un nuovo giorno
-    if data.get("last_date") != today:
-        data["today"] = 0
-        data["last_date"] = today
+    key_total      = "visits:total"
+    key_today      = f"visits:day:{today}"
+    key_month      = f"visits:month:{month}"
+    key_page       = f"visits:page:{page}"
+    key_page_today = f"visits:page:{page}:day:{today}"
 
-    # Incrementa contatori
-    data["total"] = data.get("total", 0) + 1
-    data["today"] = data.get("today", 0) + 1
+    total       = _redis("INCR", key_total)
+    today_count = _redis("INCR", key_today)
+    month_count = _redis("INCR", key_month)
+    page_total  = _redis("INCR", key_page)
+    page_today  = _redis("INCR", key_page_today)
 
-    if "monthly" not in data:
-        data["monthly"] = {}
-    data["monthly"][month] = data["monthly"].get(month, 0) + 1
-
-    save_counter(data)
+    # TTL: giornaliero scade dopo 2 giorni, mensile dopo 35 giorni
+    if today_count == 1:
+        _redis("EXPIRE", key_today, 172800)       # 2 giorni
+    if month_count == 1:
+        _redis("EXPIRE", key_month, 3024000)      # 35 giorni
+    if page_today == 1:
+        _redis("EXPIRE", key_page_today, 172800)  # 2 giorni
 
     return {
-        "total": data["total"],
-        "today": data["today"],
-        "this_month": data["monthly"].get(month, 0)
+        "total":      total       or 0,
+        "today":      today_count or 0,
+        "this_month": month_count or 0,
+        "page":       page,
+        "page_total": page_total  or 0,
+        "page_today": page_today  or 0,
     }
