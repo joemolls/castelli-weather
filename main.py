@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from locations import LOCATIONS
 from weather_client import fetch_weather
 from scraper import get_all_alerts
-from strava_client import fetch_club_info, fetch_all_club_activities, fetch_starred_segments
+from strava_client import fetch_starred_segments
 from counter import increment_visit
 from datetime import datetime, timedelta
 import csv
@@ -341,14 +341,10 @@ async def percorsi(request: Request):
             "riding_windows": riding_windows,
         })
 
-    strava_club_info      = await fetch_club_info()
-    strava_all_activities = await fetch_all_club_activities()
-    starred_segments      = await fetch_starred_segments()
+    starred_segments = await fetch_starred_segments()
 
     return templates.TemplateResponse("percorsi.html", {
-        "request":              request,
-        "gpx_forecasts":        gpx_forecasts,
-        "strava_club_info":     strava_club_info,
-        "strava_all_activities": strava_all_activities,
-        "starred_segments":     starred_segments,
+        "request":          request,
+        "gpx_forecasts":    gpx_forecasts,
+        "starred_segments": starred_segments,
     })
