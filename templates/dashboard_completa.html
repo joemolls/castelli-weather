@@ -266,6 +266,11 @@
       border-left-color: #eb3349;
     }
     
+    .day-window.medium {
+      border-left-color: #e67e22;
+      background: rgba(230, 126, 34, 0.06);
+    }
+    
     .day-window-header {
       display: flex;
       justify-content: space-between;
@@ -427,6 +432,7 @@
     }
     .soil-forecast-row.excellent { background: rgba(86,171,47,0.12); }
     .soil-forecast-row.good      { background: rgba(247,183,51,0.15); }
+    .soil-forecast-row.medium    { background: rgba(230,126,34,0.12); }
     .soil-forecast-row.poor      { background: rgba(235,51,73,0.1);  }
     .soil-forecast-day   { font-weight: bold; color: #2c3e50; min-width: 65px; }
     .soil-forecast-label { color: #555; }
@@ -456,6 +462,9 @@
     <div class="compact-section">
 
       <h3>🌱 Condizioni Sentieri</h3>
+      <div style="font-size:11px; color:#95a5a6; margin: -8px 0 10px 0; text-transform:uppercase; letter-spacing:0.5px;">
+        Stato del terreno — storico pioggia 7gg
+      </div>
 
       {% if current_conditions %}
       <div class="trail-score-compact {{ current_conditions.rating }}">
@@ -468,46 +477,34 @@
       </ul>
       {% endif %}
 
-      {% if soil_forecast %}
-      <div class="soil-forecast">
-        <div class="soil-forecast-title">📅 Miglioramento atteso</div>
-        {% for day in soil_forecast %}
-        <div class="soil-forecast-row {{ day.rating }}">
-          <span class="soil-forecast-day">{{ day.icon }} {{ day.day }}</span>
-          <span class="soil-forecast-label">{{ day.label }}{% if day.precip > 0 %} · 💧{{ day.precip }}mm{% endif %}</span>
-          <span class="soil-forecast-window">{% if day.window %}⏰ {{ day.window }}{% else %}—{% endif %}</span>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
 
     </div>
     
-    <!-- Quando Uscire -->
+    <!-- Miglioramento Atteso -->
     <div class="compact-section">
-      <h3>⏰ Quando uscire?</h3>
-      <div class="riding-windows-compact">
-        {% for window in riding_windows %}
-        <div class="day-window {{ window.rating }}">
+      <h3>📅 Miglioramento Atteso</h3>
+      <div style="font-size:11px; color:#95a5a6; margin: -8px 0 10px 0; text-transform:uppercase; letter-spacing:0.5px;">
+        Terreno + finestra meteo — previsioni a 72h
+      </div>
+      {% if soil_forecast %}
+        {% for day in soil_forecast %}
+        <div class="day-window {{ day.rating }}">
           <div class="day-window-header">
-            <span class="day-window-title">{{ window.rating_icon }} {{ window.day }}</span>
-            <span class="day-window-time">{{ window.start_time }}-{{ window.end_time }} ({{ window.duration }}h)</span>
+            <span class="day-window-title">{{ day.icon }} {{ day.day }} — {{ day.label }}</span>
+            <span class="day-window-time">{% if day.window %}⏰ {{ day.window }}{% else %}—{% endif %}</span>
           </div>
           <div class="day-window-details">
-            🌡️ {{ window.temp | round(0) }}°C · 💨 {{ window.wind | round(0) }} km/h · 💧 {{ window.precip | round(1) }}mm
+            {% if day.temp is not none %}🌡️ {{ day.temp }}°C · {% endif %}
+            {% if day.wind is not none %}💨 {{ day.wind }} km/h · {% endif %}
+            💧 {{ day.precip }}mm
           </div>
-          {% if loop.first and trail_conditions.rating == 'poor' %}
-          <div class="trail-warning-badge">⚠️ Terreno saturo ({{ trail_conditions.rain_24h | round(1) }}mm/24h) — sentieri danneggiati</div>
-          {% endif %}
         </div>
         {% endfor %}
-        {% if riding_windows|length == 0 %}
+      {% else %}
         <div class="day-window poor">
-          <div class="day-window-title">🔴 Nessuna finestra ideale</div>
-          <div class="day-window-details">Condizioni non favorevoli per XCM nei prossimi 3 giorni</div>
+          <div class="day-window-title">🔴 Dati non disponibili</div>
         </div>
-        {% endif %}
-      </div>
+      {% endif %}
     </div>
 
     <!-- Vento in Quota -->

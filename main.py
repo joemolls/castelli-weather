@@ -438,10 +438,14 @@ def adjust_windows_for_soil(windows, soil_dryness, hourly_data=None):
             w["rating"]      = "poor"
             w["rating_icon"] = "🔴"
         elif effective_rating == "wet":
+            # wet → sempre medium (arancione), indipendentemente dal meteo
+            w["rating"]      = "medium"
+            w["rating_icon"] = "🟠"
+        elif effective_rating == "damp":
             if w["rating"] == "excellent":
                 w["rating"]      = "good"
                 w["rating_icon"] = "🟡"
-        # damp/dry → invariato
+        # dry → invariato
 
         adjusted.append(w)
     return adjusted
@@ -527,13 +531,15 @@ def project_soil_forecast(soil_dryness, hourly_data, riding_windows):
         window     = windows_by_day.get(day)
 
         forecast.append({
-            "day":     day_name,
-            "date":    day.strftime("%d %b"),
-            "rating":  css,
-            "icon":    icon,
-            "label":   label,
-            "precip":  round(precip_day, 1),
-            "window":  f"{window['start_time']}-{window['end_time']}" if window else None,
+            "day":    day_name,
+            "date":   day.strftime("%d %b"),
+            "rating": css,
+            "icon":   icon,
+            "label":  label,
+            "precip": round(precip_day, 1),
+            "window": (f"{window['start_time']}-{window['end_time']} ({window['duration']}h)") if window else None,
+            "temp":   round(window["temp"]) if window else None,
+            "wind":   round(window["wind"]) if window else None,
         })
 
     return forecast

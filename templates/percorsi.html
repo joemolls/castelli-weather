@@ -174,6 +174,7 @@
     .day-window.excellent { border-left-color: #27ae60; background: #f0faf4; }
     .day-window.good      { border-left-color: #e67e22; background: #fef9f0; }
     .day-window.poor      { border-left-color: #e74c3c; background: #fdf0f0; }
+    .day-window.medium    { border-left-color: #e67e22; background: #fef5ec; }
     .day-window-header {
       display: flex; justify-content: space-between; align-items: center;
       font-weight: bold; margin-bottom: 2px;
@@ -340,7 +341,7 @@
 
   <!-- METEO GPX -->
   <p style="color:#2c3e50;font-size:15px;font-weight:bold;margin-bottom:10px">
-    Quando uscire &mdash; previsione 72h per percorso
+    📅 Miglioramento atteso &mdash; terreno + finestra meteo 72h per percorso
   </p>
   <div class="forecast-grid">
     {% for gpx in gpx_forecasts %}
@@ -355,34 +356,24 @@
       </span>
       {% endif %}
       {% if gpx.soil_forecast %}
-      <div class="soil-forecast-mini">
-        {% for day in gpx.soil_forecast %}
-        <div class="soil-forecast-mini-row">
-          <span class="soil-forecast-mini-day">{{ day.icon }} {{ day.day }}</span>
-          <span>{{ day.label }}{% if day.precip > 0 %} · 💧{{ day.precip }}mm{% endif %}</span>
-          <span style="color:#7f8c8d">{% if day.window %}⏰ {{ day.window }}{% else %}—{% endif %}</span>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
       <div class="riding-windows">
-        {% for w in gpx.riding_windows %}
-        <div class="day-window {{ w.rating }}">
+        {% for day in gpx.soil_forecast %}
+        <div class="day-window {{ day.rating }}">
           <div class="day-window-header">
-            <span class="day-window-title">{{ w.rating_icon }} {{ w.day }}</span>
-            <span class="day-window-time">{{ w.start_time }}&ndash;{{ w.end_time }} ({{ w.duration }}h)</span>
+            <span class="day-window-title">{{ day.icon }} {{ day.day }} — {{ day.label }}</span>
+            <span class="day-window-time">{% if day.window %}⏰ {{ day.window }}{% else %}—{% endif %}</span>
           </div>
           <div class="day-window-details">
-            {{ w.temp | round(0) | int }}&deg;C &nbsp;&middot;&nbsp;
-            {{ w.wind | round(0) | int }} km/h &nbsp;&middot;&nbsp;
-            {{ w.precip | round(1) }}mm
+            {% if day.temp is not none %}{{ day.temp }}&deg;C &nbsp;&middot;&nbsp;{% endif %}
+            {% if day.wind is not none %}{{ day.wind }} km/h &nbsp;&middot;&nbsp;{% endif %}
+            💧 {{ day.precip }}mm
           </div>
         </div>
         {% endfor %}
-        {% if gpx.riding_windows | length == 0 %}
-        <p class="no-windows">Nessuna finestra ideale nei prossimi 3 giorni</p>
-        {% endif %}
       </div>
+      {% else %}
+      <p class="no-windows">Nessun dato disponibile</p>
+      {% endif %}
     </div>
     {% else %}
     <p style="color:#95a5a6">Nessun dato meteo disponibile</p>
