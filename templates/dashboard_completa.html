@@ -402,6 +402,39 @@
         flex-direction: column;
       }
     }
+
+    /* Soil forecast — proiezione giornaliera */
+    .soil-forecast {
+      margin-top: 10px;
+      border-top: 1px solid #ecf0f1;
+      padding-top: 8px;
+    }
+    .soil-forecast-title {
+      font-size: 10px;
+      color: #95a5a6;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .soil-forecast-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 8px;
+      border-radius: 5px;
+      margin-bottom: 4px;
+      font-size: 12px;
+    }
+    .soil-forecast-row.excellent { background: rgba(86,171,47,0.12); }
+    .soil-forecast-row.good      { background: rgba(247,183,51,0.15); }
+    .soil-forecast-row.poor      { background: rgba(235,51,73,0.1);  }
+    .soil-forecast-day   { font-weight: bold; color: #2c3e50; min-width: 65px; }
+    .soil-forecast-label { color: #555; }
+    .soil-forecast-window {
+      font-size: 11px;
+      color: #7f8c8d;
+      white-space: nowrap;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.1.1/dist/chartjs-plugin-annotation.min.js"></script>
@@ -419,24 +452,35 @@
   
   <!-- MTB Info Compact - Tutto su una riga -->
   <div class="mtb-compact">
-    <!-- Condizioni Sentieri + Soil Dryness -->
+    <!-- Condizioni Sentieri: stato attuale + proiezione -->
     <div class="compact-section">
-      <h3>🚴‍♂️ Condizioni Sentieri</h3>
-      <div class="trail-score-compact {{ trail_conditions.rating }}">
-        {{ trail_conditions.rating_emoji }} {{ trail_conditions.rating_text }}
+
+      <h3>🌱 Condizioni Sentieri</h3>
+
+      {% if current_conditions %}
+      <div class="trail-score-compact {{ current_conditions.rating }}">
+        {{ current_conditions.rating_emoji }} {{ current_conditions.rating_text }}
       </div>
       <ul class="condition-list-compact">
-        {% for reason in trail_conditions.reasons[:3] %}
+        {% for reason in current_conditions.reasons[:3] %}
         <li>{{ reason }}</li>
         {% endfor %}
       </ul>
-      {% if soil_dryness %}
-      <div class="soil-dryness-inline">
-        <span class="soil-dryness-dot" style="background:{{ soil_dryness.color }}"></span>
-        🌱 Terreno: <strong style="color:{{ soil_dryness.color }}">{{ soil_dryness.label }}</strong>
-        — {{ soil_dryness.dry_days }} giorni senza pioggia
+      {% endif %}
+
+      {% if soil_forecast %}
+      <div class="soil-forecast">
+        <div class="soil-forecast-title">📅 Miglioramento atteso</div>
+        {% for day in soil_forecast %}
+        <div class="soil-forecast-row {{ day.rating }}">
+          <span class="soil-forecast-day">{{ day.icon }} {{ day.day }}</span>
+          <span class="soil-forecast-label">{{ day.label }}{% if day.precip > 0 %} · 💧{{ day.precip }}mm{% endif %}</span>
+          <span class="soil-forecast-window">{% if day.window %}⏰ {{ day.window }}{% else %}—{% endif %}</span>
+        </div>
+        {% endfor %}
       </div>
       {% endif %}
+
     </div>
     
     <!-- Quando Uscire -->

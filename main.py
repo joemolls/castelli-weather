@@ -120,6 +120,60 @@ def calculate_trail_conditions(hourly_data):
         "rain_24h": rain_24h, "current_wind": current_wind, "current_gust": current_gust,
     }
 
+
+def calculate_current_conditions(soil_dryness):
+    """
+    Condizioni ATTUALI del terreno basate sullo storico reale (soil_dryness).
+    Restituisce rating, testo e motivi per il box "Ora sul Terreno".
+    """
+    if not soil_dryness:
+        return None
+
+    rating_soil = soil_dryness.get("rating", "dry")
+    dry_days    = soil_dryness.get("dry_days", 0)
+    rain_7d     = soil_dryness.get("rain_7d", 0)
+
+    reasons = []
+
+    if rating_soil == "saturated":
+        score = 20
+        reasons.append(f"❌ Terreno saturo ({rain_7d:.0f}mm negli ultimi 7 giorni)")
+        reasons.append(f"❌ Sentieri danneggiati — evita di uscire")
+        if dry_days == 0:
+            reasons.append("⚠️ Pioggia ancora recente")
+        else:
+            reasons.append(f"⏳ {dry_days} giorn{'o' if dry_days==1 else 'i'} senza pioggia — troppo poco")
+    elif rating_soil == "wet":
+        score = 45
+        reasons.append(f"⚠️ Terreno bagnato ({rain_7d:.0f}mm negli ultimi 7 giorni)")
+        reasons.append(f"⚠️ Sentieri scivolosi — massima attenzione")
+        reasons.append(f"⏳ {dry_days} giorn{'o' if dry_days==1 else 'i'} senza pioggia")
+    elif rating_soil == "damp":
+        score = 70
+        reasons.append(f"🟡 Terreno umido ({rain_7d:.0f}mm negli ultimi 7 giorni)")
+        reasons.append(f"✅ Sentieri percorribili con attenzione")
+        reasons.append(f"☀️ {dry_days} giorn{'o' if dry_days==1 else 'i'} senza pioggia")
+    else:  # dry
+        score = 95
+        reasons.append(f"✅ Terreno asciutto ({rain_7d:.0f}mm negli ultimi 7 giorni)")
+        reasons.append(f"✅ Sentieri in ottime condizioni")
+        reasons.append(f"☀️ {dry_days} giorn{'o' if dry_days==1 else 'i'} senza pioggia")
+
+    if score >= 80:
+        rating = "excellent"; rating_text = "🟢 ASCIUTTI";  rating_emoji = "✅"
+    elif score >= 55:
+        rating = "good";      rating_text = "🟡 UMIDI";     rating_emoji = "⚠️"
+    elif score >= 35:
+        rating = "good";      rating_text = "🟠 BAGNATI";   rating_emoji = "⚠️"
+    else:
+        rating = "poor";      rating_text = "🔴 SATURI";    rating_emoji = "❌"
+
+    return {
+        "score": score, "rating": rating,
+        "rating_text": rating_text, "rating_emoji": rating_emoji,
+        "reasons": reasons,
+    }
+
 def find_best_riding_windows(hourly_data):
     now = datetime.now()
     hours_by_day = {}
@@ -391,6 +445,98 @@ def adjust_windows_for_soil(windows, soil_dryness, hourly_data=None):
         adjusted.append(w)
     return adjusted
 
+
+def project_soil_forecast(soil_dryness, hourly_data, riding_windows):
+    """
+    Proietta il rating del terreno per i prossimi 3 giorni,
+    combinando lo stato attuale con le precipitazioni previste.
+
+    Logica recupero:
+      - Se il giorno prevede <2mm totali → terreno recupera un livello
+      - Se ≥2mm → rimane al livello attuale (o peggiora se >10mm)
+
+    Livelli: saturated > wet > damp > dry
+    """
+    if not soil_dryness or not hourly_data:
+        return []
+
+    LEVELS = ["saturated", "wet", "damp", "dry"]
+    LABELS = {
+        "saturated": ("poor",      "🔴", "Saturo"),
+        "wet":       ("good",      "🟠", "Bagnato"),
+        "damp":      ("good",      "🟡", "Umido"),
+        "dry":       ("excellent", "🟢", "Asciutto"),
+    }
+
+    # Precipitazioni previste per giorno
+    daily_precip = {}
+    for i, time_str in enumerate(hourly_data.get("time", [])):
+        try:
+            dt  = datetime.fromisoformat(time_str)
+            day = dt.date()
+            p   = hourly_data["precipitation"][i] if i < len(hourly_data.get("precipitation", [])) else 0
+            daily_precip[day] = daily_precip.get(day, 0) + (p or 0)
+        except Exception:
+            continue
+
+    # Mappa finestre per data (per mostrare orario consigliato)
+    windows_by_day = {}
+    for w in (riding_windows or []):
+        try:
+            d = datetime.strptime(w["date"], "%d %b").replace(year=datetime.now().year).date()
+            windows_by_day[d] = w
+        except Exception:
+            pass
+
+    base_rating = soil_dryness.get("rating", "dry")
+    level_idx   = LEVELS.index(base_rating)
+
+    now      = datetime.now()
+    forecast = []
+
+    for offset in range(3):
+        day = (now + timedelta(days=offset)).date()
+
+        # Calcola il rating effettivo per questo giorno
+        # (applica recupero progressivo dai giorni precedenti)
+        effective_idx = level_idx
+        for d_off in range(offset):
+            prev_day   = (now + timedelta(days=d_off)).date()
+            prev_precip = daily_precip.get(prev_day, 0)
+            if prev_precip < 2.0 and effective_idx < len(LEVELS) - 1:
+                effective_idx += 1
+            elif prev_precip > 10.0 and effective_idx > 0:
+                effective_idx -= 1
+
+        effective_rating = LEVELS[effective_idx]
+        css, icon, label = LABELS[effective_rating]
+
+        # Nome giorno
+        if offset == 0:
+            day_name = "Oggi"
+        elif offset == 1:
+            day_name = "Domani"
+        else:
+            giorni = {"Mon":"Lun","Tue":"Mar","Wed":"Mer","Thu":"Gio","Fri":"Ven","Sat":"Sab","Sun":"Dom"}
+            day_name = day.strftime("%a %d %b")
+            for en, it in giorni.items():
+                day_name = day_name.replace(en, it)
+
+        precip_day = daily_precip.get(day, 0)
+        window     = windows_by_day.get(day)
+
+        forecast.append({
+            "day":     day_name,
+            "date":    day.strftime("%d %b"),
+            "rating":  css,
+            "icon":    icon,
+            "label":   label,
+            "precip":  round(precip_day, 1),
+            "window":  f"{window['start_time']}-{window['end_time']}" if window else None,
+        })
+
+    return forecast
+
 # ─── Routes ──────────────────────────────────────────────────────────────────
 @app.get("/")
 def root():
@@ -455,13 +601,20 @@ async def dashboard_completa(request: Request):
             "soil_dryness": loc_soil_dryness,
         })
 
+    current_conditions = calculate_current_conditions(soil_dryness)
+    soil_forecast      = project_soil_forecast(soil_dryness, 
+                             all_data[0]["hourly"] if all_data else None,
+                             overall_riding_windows)
+
     return templates.TemplateResponse("dashboard_completa.html", {
         "request": request,
-        "locations_data":   all_data,
-        "trail_conditions": overall_trail_conditions,
-        "riding_windows":   overall_riding_windows,
-        "soil_dryness":     soil_dryness,
-        "visit_stats":      visit_stats,
+        "locations_data":      all_data,
+        "trail_conditions":    overall_trail_conditions,
+        "current_conditions":  current_conditions,
+        "soil_forecast":       soil_forecast,
+        "riding_windows":      overall_riding_windows,
+        "soil_dryness":        soil_dryness,
+        "visit_stats":         visit_stats,
     })
 
 @app.get("/avvisi", response_class=HTMLResponse)
