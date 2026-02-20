@@ -4,10 +4,10 @@ import uuid
 import httpx
 from datetime import datetime, timedelta
 
-UPSTASH_URL   = os.getenv("UPSTASH_REDIS_REST_URL", "").rstrip("/")
-UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "")
-
+UPSTASH_URL      = os.getenv("UPSTASH_REDIS_REST_URL", "").rstrip("/")
+UPSTASH_TOKEN    = os.getenv("UPSTASH_REDIS_REST_TOKEN", "")
 REPORT_TTL_DAYS  = 21
+MIN_REPORTS      = 5        # mantieni sempre almeno le ultime N segnalazioni
 REPORTS_ZSET_KEY = "reports:index"
 
 
@@ -19,10 +19,6 @@ def _headers():
 
 
 def _pipeline(commands: list):
-    """
-    Esegue più comandi Redis in una sola richiesta HTTP via Upstash pipeline.
-    commands = [["SET", "key", "value"], ["EXPIRE", "key", 86400], ...]
-    """
     try:
         r = httpx.post(
             f"{UPSTASH_URL}/pipeline",
@@ -38,7 +34,6 @@ def _pipeline(commands: list):
 
 
 def _cmd(*args):
-    """Esegue un singolo comando Redis."""
     result = _pipeline([list(args)])
     if result and isinstance(result, list):
         return result[0].get("result")
@@ -78,8 +73,19 @@ def get_active_reports() -> list:
     now    = datetime.utcnow()
     cutoff = int((now - timedelta(days=REPORT_TTL_DAYS)).timestamp())
 
-    _cmd("ZREMRANGEBYSCORE", REPORTS_ZSET_KEY, 0, cutoff)
+    # Conta quante segnalazioni ci sono in totale
+    total = _cmd("ZCARD", REPORTS_ZSET_KEY) or 0
 
+    # Rimuovi le scadute solo se ce ne sono più di MIN_REPORTS
+    # così le ultime 5 restano sempre visibili anche se vecchie
+    if total > MIN_REPORTS:
+        # Rimuovi scadute ma lascia almeno MIN_REPORTS
+        expired_count = _cmd("ZCOUNT", REPORTS_ZSET_KEY, 0, cutoff) or 0
+        removable     = max(0, int(expired_count) - max(0, MIN_REPORTS - (int(total) - int(expired_count))))
+        if removable > 0:
+            _cmd("ZREMRANGEBYSCORE", REPORTS_ZSET_KEY, 0, cutoff)
+
+    # Recupera tutte le chiavi
     keys = _cmd("ZRANGE", REPORTS_ZSET_KEY, 0, -1)
     if not keys:
         return []
@@ -90,16 +96,24 @@ def get_active_reports() -> list:
         return []
 
     reports = []
-    for res in reversed(results):
+    for res in reversed(results):  # più recenti prima
         raw = res.get("result")
         if not raw:
             continue
         try:
-            report  = json.loads(raw)
-            expires = datetime.fromisoformat(report.get("expires_at", ""))
-            if expires > now:
-                reports.append(report)
+            report = json.loads(raw)
+            reports.append(report)   # includi anche scadute se siamo sotto MIN_REPORTS
         except Exception:
             continue
 
-    return reports
+    # Separa attive e scadute
+    active  = [r for r in reports if datetime.fromisoformat(r["expires_at"]) > now]
+    expired = [r for r in reports if datetime.fromisoformat(r["expires_at"]) <= now]
+
+    # Assicura almeno MIN_REPORTS in totale
+    combined = active
+    if len(combined) < MIN_REPORTS:
+        needed   = MIN_REPORTS - len(combined)
+        combined = combined + expired[:needed]
+
+    return combined
