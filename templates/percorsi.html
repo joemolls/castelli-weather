@@ -153,6 +153,19 @@
     .condition-badge.excellent { color: #27ae60; }
     .condition-badge.good      { color: #e67e22; }
     .condition-badge.poor      { color: #e74c3c; }
+    .soil-badge {
+      display: inline-block; font-weight: bold; font-size: 12px;
+      padding: 3px 10px; border-radius: 12px; margin-bottom: 6px;
+    }
+    .soil-badge.excellent { background: rgba(39,174,96,0.12);  color: #27ae60; }
+    .soil-badge.good      { background: rgba(230,126,34,0.12); color: #e67e22; }
+    .soil-badge.poor      { background: rgba(231,76,60,0.10);  color: #e74c3c; }
+    .soil-forecast-mini { margin-bottom: 8px; }
+    .soil-forecast-mini-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px; padding: 2px 0; color: #555;
+    }
+    .soil-forecast-mini-day { font-weight: bold; min-width: 60px; color: #2c3e50; }
     .riding-windows { display: flex; flex-direction: column; gap: 5px; }
     .day-window {
       padding: 6px 10px; border-radius: 5px; font-size: 12px;
@@ -336,10 +349,22 @@
       <div class="forecast-coords">
         Meteo calcolato su centroide tracciato &mdash; {{ gpx.lat }}&deg;N {{ gpx.lon }}&deg;E
       </div>
-      <span class="condition-badge {{ gpx.conditions.rating }}">
-        {{ gpx.conditions.rating_emoji }} {{ gpx.conditions.rating_text }}
-        &nbsp;&middot;&nbsp; {{ gpx.conditions.rain_24h | round(1) }}mm pioggia 24h
+      {% if current_conditions %}
+      <span class="soil-badge {{ current_conditions.rating }}">
+        {{ current_conditions.rating_emoji }} Terreno {{ current_conditions.rating_text }}
       </span>
+      {% endif %}
+      {% if gpx.soil_forecast %}
+      <div class="soil-forecast-mini">
+        {% for day in gpx.soil_forecast %}
+        <div class="soil-forecast-mini-row">
+          <span class="soil-forecast-mini-day">{{ day.icon }} {{ day.day }}</span>
+          <span>{{ day.label }}{% if day.precip > 0 %} · 💧{{ day.precip }}mm{% endif %}</span>
+          <span style="color:#7f8c8d">{% if day.window %}⏰ {{ day.window }}{% else %}—{% endif %}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
       <div class="riding-windows">
         {% for w in gpx.riding_windows %}
         <div class="day-window {{ w.rating }}">

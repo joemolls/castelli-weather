@@ -633,6 +633,17 @@ async def percorsi(request: Request):
     """Mappa percorsi GPX con meteo calcolato dal centroide del tracciato + dati Strava"""
     increment_visit(page="percorsi")
 
+    # Fetch soil_dryness una volta sola (Monte Cavo come riferimento)
+    ref_loc     = list(LOCATIONS.values())[0]
+    percorsi_soil_dryness = None
+    try:
+        history = await fetch_weather_history(ref_loc["lat"], ref_loc["lon"], days=7)
+        percorsi_soil_dryness = calculate_soil_dryness(history)
+    except Exception as e:
+        print(f"⚠️ Storico meteo non disponibile per percorsi: {e}")
+
+    percorsi_current_conditions = calculate_current_conditions(percorsi_soil_dryness)
+
     gpx_forecasts = []
     for gpx in GPX_FILES:
         lat, lon = get_gpx_centroid(gpx["file"])
@@ -645,6 +656,10 @@ async def percorsi(request: Request):
         conditions     = calculate_trail_conditions(hourly)
         riding_windows = find_best_riding_windows(hourly)
 
+        # Aggiusta finestre in base allo stato del terreno
+        riding_windows = adjust_windows_for_soil(riding_windows, percorsi_soil_dryness, hourly)
+        soil_forecast  = project_soil_forecast(percorsi_soil_dryness, hourly, riding_windows)
+
         gpx_forecasts.append({
             "key":            gpx["key"],
             "name":           gpx["name"],
@@ -654,6 +669,7 @@ async def percorsi(request: Request):
             "lon":            lon,
             "conditions":     conditions,
             "riding_windows": riding_windows,
+            "soil_forecast":  soil_forecast,
         })
 
     #strava_club_info      = await fetch_club_info()
@@ -661,9 +677,11 @@ async def percorsi(request: Request):
     starred_segments      = await fetch_starred_segments()
 
     return templates.TemplateResponse("percorsi.html", {
-        "request":              request,
-        "gpx_forecasts":        gpx_forecasts,
-        #"strava_club_info":     strava_club_info,
-        #"strava_all_activities": strava_all_activities,
-        "starred_segments":     starred_segments,
+        "request":                   request,
+        "gpx_forecasts":             gpx_forecasts,
+        "current_conditions":        percorsi_current_conditions,
+        "soil_dryness":              percorsi_soil_dryness,
+        #"strava_club_info":         strava_club_info,
+        #"strava_all_activities":    strava_all_activities,
+        "starred_segments":          starred_segments,
     })
