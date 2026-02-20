@@ -117,3 +117,16 @@ def get_active_reports() -> list:
         combined = combined + expired[:needed]
 
     return combined
+
+
+def delete_report(report_id: str) -> bool:
+    """Elimina una segnalazione dal DB e dall'indice sorted set."""
+    key = f"report:{report_id}"
+    results = _pipeline([
+        ["ZREM", REPORTS_ZSET_KEY, key],
+        ["DEL",  key],
+    ])
+    if not results:
+        return False
+    deleted = results[1].get("result", 0)
+    return deleted == 1

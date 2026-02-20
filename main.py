@@ -7,7 +7,7 @@ from weather_client import fetch_weather, fetch_weather_history
 from scraper import get_all_alerts
 from strava_client import fetch_starred_segments
 from counter import increment_visit
-from reports import save_report, get_active_reports
+from reports import save_report, get_active_reports, delete_report
 from datetime import datetime, timedelta
 import csv
 import httpx
@@ -631,6 +631,52 @@ async def sim_report():
     """Pagina di simulazione segnalazione GPS — solo per test."""
     with open("templates/sim_report.html", "r") as f:
         return f.read()
+
+
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "mtbadmin")
+
+@app.get("/admin/segnalazioni", response_class=HTMLResponse)
+async def admin_segnalazioni(request: Request, pwd: str = ""):
+    """Pagina admin per gestire le segnalazioni."""
+    if pwd != ADMIN_PASSWORD:
+        return HTMLResponse("""
+        <!DOCTYPE html><html><head><meta charset="UTF-8">
+        <title>Admin — Login</title>
+        <style>
+          body{font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;
+               height:100vh;margin:0;background:#ecf0f1;}
+          .box{background:white;padding:30px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);
+               text-align:center;min-width:300px;}
+          h2{color:#2c3e50;margin-bottom:20px;}
+          input{width:100%;padding:10px;border-radius:8px;border:1px solid #ddd;
+                font-size:14px;box-sizing:border-box;margin-bottom:12px;}
+          button{width:100%;padding:10px;background:#2c3e50;color:white;border:none;
+                 border-radius:8px;font-size:14px;font-weight:bold;cursor:pointer;}
+          button:hover{background:#34495e;}
+        </style></head><body>
+        <div class="box">
+          <h2>🔐 Admin Segnalazioni</h2>
+          <form method="get">
+            <input type="password" name="pwd" placeholder="Password admin" autofocus>
+            <button type="submit">Accedi</button>
+          </form>
+        </div></body></html>
+        """, status_code=401)
+
+    reports = get_active_reports()
+    return templates.TemplateResponse("admin_segnalazioni.html", {
+        "request": request,
+        "reports": reports,
+        "pwd":     pwd,
+    })
+
+@app.post("/admin/elimina/{report_id}")
+async def admin_elimina(report_id: str, pwd: str = ""):
+    """Elimina una segnalazione dal DB."""
+    if pwd != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Non autorizzato")
+    ok = delete_report(report_id)
+    return {"ok": ok}
 
 @app.post("/segnala")
 async def segnala(request: Request):

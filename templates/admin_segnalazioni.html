@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Segnalazioni</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background: #ecf0f1; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    h1 { color: #2c3e50; margin-bottom: 4px; }
+    .subtitle { color: #7f8c8d; font-size: 13px; margin-bottom: 20px; }
+
+    .card {
+      background: white; border-radius: 8px; padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 16px;
+    }
+    .card h3 {
+      margin: 0 0 12px 0; color: #2c3e50; font-size: 15px;
+      border-bottom: 2px solid #3498db; padding-bottom: 6px;
+    }
+
+    /* Mappa */
+    #map { height: 340px; border-radius: 6px; border: 1px solid #ddd; }
+
+    /* Tabella */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      background: #2c3e50; color: white; padding: 9px 12px;
+      text-align: left; font-weight: bold;
+    }
+    td { padding: 9px 12px; border-bottom: 1px solid #ecf0f1; vertical-align: middle; }
+    tr:hover td { background: #f8f9fa; }
+    tr.expired td { opacity: 0.5; }
+
+    .kind-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 12px;
+      font-size: 12px; font-weight: bold; white-space: nowrap;
+    }
+    .kind-badge.ok      { background: rgba(39,174,96,0.12);  color: #27ae60; }
+    .kind-badge.muddy   { background: rgba(247,183,51,0.18); color: #d4850a; }
+    .kind-badge.closed  { background: rgba(231,76,60,0.12);  color: #e74c3c; }
+    .kind-badge.danger  { background: rgba(230,126,34,0.12); color: #e67e22; }
+
+    .expiry-ok      { color: #27ae60; font-size: 11px; }
+    .expiry-soon    { color: #e67e22; font-size: 11px; font-weight: bold; }
+    .expiry-expired { color: #e74c3c; font-size: 11px; }
+
+    .btn-del {
+      padding: 5px 12px; border-radius: 6px; border: none;
+      background: #e74c3c; color: white; cursor: pointer;
+      font-size: 12px; font-weight: bold; transition: all 0.15s;
+    }
+    .btn-del:hover { background: #c0392b; transform: scale(1.05); }
+    .btn-del:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
+
+    .coords { font-size: 11px; color: #95a5a6; font-family: monospace; }
+    .desc   { max-width: 200px; font-size: 12px; color: #555; }
+
+    .empty { text-align: center; color: #95a5a6; padding: 30px; font-size: 14px; }
+    .nav-link {
+      display: inline-block; background: #667eea; color: white;
+      padding: 7px 16px; border-radius: 20px; text-decoration: none;
+      font-size: 13px; font-weight: bold; margin-right: 8px;
+      transition: transform 0.15s;
+    }
+    .nav-link:hover { transform: translateY(-1px); }
+    .counter { 
+      display: inline-block; background: #ecf0f1; color: #2c3e50;
+      padding: 4px 12px; border-radius: 12px; font-size: 13px;
+      font-weight: bold; margin-left: 10px;
+    }
+    .toast {
+      position: fixed; bottom: 20px; right: 20px;
+      padding: 12px 20px; border-radius: 8px; font-size: 13px;
+      font-weight: bold; display: none; z-index: 9999;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .toast.success { background: #d4edda; color: #155724; }
+    .toast.error   { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🛠️ Admin — Segnalazioni</h1>
+  <div class="subtitle">
+    Gestione segnalazioni community &nbsp;·&nbsp;
+    <a href="/avvisi" class="nav-link">← Avvisi</a>
+    <a href="/percorsi" class="nav-link">🗺️ Percorsi</a>
+    <span class="counter">{{ reports | length }} segnalazioni</span>
+  </div>
+
+  <!-- Mappa -->
+  <div class="card">
+    <h3>🗺️ Posizione Segnalazioni</h3>
+    <div id="map"></div>
+  </div>
+
+  <!-- Tabella -->
+  <div class="card">
+    <h3>📋 Lista Completa</h3>
+    {% if reports %}
+    <table>
+      <thead>
+        <tr>
+          <th>Tipo</th>
+          <th>Descrizione</th>
+          <th>Coordinate</th>
+          <th>Data</th>
+          <th>Scadenza</th>
+          <th>Azione</th>
+        </tr>
+      </thead>
+      <tbody id="reportTable">
+        {% set icons  = {"ok":"🟢","muddy":"🟡","closed":"🔴","danger":"⚠️"} %}
+        {% set labels = {"ok":"Sentiero OK","muddy":"Fangoso/Bagnato","closed":"Chiuso/Bloccato","danger":"Pericolo"} %}
+        {% for r in reports %}
+        <tr id="row-{{ r.id }}">
+          <td>
+            <span class="kind-badge {{ r.kind }}">
+              {{ icons.get(r.kind,"📍") }} {{ labels.get(r.kind, r.kind) }}
+            </span>
+          </td>
+          <td class="desc">{{ r.description or "—" }}</td>
+          <td class="coords">{{ r.lat }}°N<br>{{ r.lon }}°E</td>
+          <td style="font-size:12px; white-space:nowrap">{{ r.created_at[:16] | replace("T"," ") }}</td>
+          <td>
+            {% set exp = r.expires_at[:10] %}
+            <span class="expiry-ok">✅ {{ exp }}</span>
+          </td>
+          <td>
+            <button class="btn-del" onclick="deleteReport('{{ r.id }}', this)"
+              title="Elimina questa segnalazione">
+              🗑️ Elimina
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Nessuna segnalazione presente.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const pwd = "{{ pwd }}";
+
+  // ── Mappa ──────────────────────────────────────────────────────────────────
+  const map = L.map('map').setView([41.752, 12.710], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  const reportData = {{ reports | tojson }};
+  const kindInfo = {
+    ok:     { emoji: '🟢', color: '#27ae60' },
+    muddy:  { emoji: '🟡', color: '#f7b733' },
+    closed: { emoji: '🔴', color: '#e74c3c' },
+    danger: { emoji: '⚠️', color: '#e67e22' },
+  };
+  const kindLabels = {
+    ok: 'Sentiero OK', muddy: 'Fangoso/Bagnato',
+    closed: 'Chiuso/Bloccato', danger: 'Pericolo'
+  };
+
+  const markers = {};
+
+  reportData.forEach(r => {
+    const info = kindInfo[r.kind] || { emoji: '📍', color: '#95a5a6' };
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="font-size:24px;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4))">${info.emoji}</div>`,
+      iconAnchor: [12, 12],
+    });
+
+    const marker = L.marker([r.lat, r.lon], { icon })
+      .addTo(map)
+      .bindPopup(`
+        <div style="font-size:13px;min-width:180px">
+          <strong>${info.emoji} ${kindLabels[r.kind] || r.kind}</strong>
+          ${r.description ? `<br><em style="color:#555">${r.description}</em>` : ''}
+          <div style="font-size:11px;color:#95a5a6;margin-top:6px">
+            📅 ${r.created_at.slice(0,10)}
+          </div>
+          <button onclick="deleteReport('${r.id}', null)" 
+            style="margin-top:8px;padding:4px 10px;background:#e74c3c;color:white;
+                   border:none;border-radius:5px;cursor:pointer;font-size:12px">
+            🗑️ Elimina
+          </button>
+        </div>
+      `);
+
+    markers[r.id] = marker;
+  });
+
+  // Fit bounds se ci sono markers
+  if (reportData.length > 0) {
+    const bounds = reportData.map(r => [r.lat, r.lon]);
+    map.fitBounds(bounds, { padding: [30, 30] });
+  }
+
+  // ── Elimina ────────────────────────────────────────────────────────────────
+  async function deleteReport(id, btn) {
+    if (!confirm('Eliminare questa segnalazione?')) return;
+    if (btn) btn.disabled = true;
+
+    try {
+      const res = await fetch(`/admin/elimina/${id}?pwd=${pwd}`, { method: 'POST' });
+      const data = await res.json();
+
+      if (data.ok) {
+        // Rimuovi riga tabella
+        const row = document.getElementById(`row-${id}`);
+        if (row) row.remove();
+
+        // Rimuovi marker mappa
+        if (markers[id]) {
+          map.removeLayer(markers[id]);
+          delete markers[id];
+        }
+
+        showToast('✅ Segnalazione eliminata', 'success');
+
+        // Aggiorna contatore
+        const remaining = document.querySelectorAll('#reportTable tr').length;
+        document.querySelector('.counter').textContent = `${remaining} segnalazioni`;
+      } else {
+        throw new Error('Errore server');
+      }
+    } catch(e) {
+      showToast('❌ Errore: ' + e.message, 'error');
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent  = msg;
+    t.className    = `toast ${type}`;
+    t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 3000);
+  }
+</script>
+</body>
+</html>
