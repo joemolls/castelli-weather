@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>🧪 Simulazione Segnalazione</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #ecf0f1; }
+    .container { max-width: 600px; margin: 0 auto; }
+    h2 { color: #2c3e50; }
+    .sim-box {
+      background: #fff3cd; border: 2px dashed #ffc107;
+      border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 13px; color: #856404;
+    }
+    .coord-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+    }
+    .coord-btn {
+      padding: 10px; border-radius: 8px; border: 2px solid #3498db;
+      background: white; cursor: pointer; font-size: 13px; font-weight: bold;
+      color: #2c3e50; text-align: center; transition: all 0.15s;
+    }
+    .coord-btn:hover   { background: #ebf5fb; }
+    .coord-btn.active  { background: #3498db; color: white; border-color: #3498db; }
+    .coord-custom { display: flex; gap: 8px; margin-bottom: 14px; }
+    .coord-custom input {
+      flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid #dee2e6;
+      font-size: 13px;
+    }
+    label { font-size: 13px; font-weight: bold; color: #2c3e50; display: block; margin-bottom: 6px; }
+    .kind-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .kind-btn {
+      padding: 10px 8px; border-radius: 8px; border: 2px solid #dee2e6;
+      background: white; cursor: pointer; font-size: 13px; font-weight: bold;
+      text-align: center; transition: all 0.15s; color: #2c3e50;
+    }
+    .kind-btn:hover     { border-color: #3498db; background: #f0f8ff; }
+    .kind-btn.selected  { color: white; border-color: transparent; }
+    .kind-btn.sel-ok     { background: #27ae60; }
+    .kind-btn.sel-muddy  { background: #f7b733; }
+    .kind-btn.sel-closed { background: #e74c3c; }
+    .kind-btn.sel-danger { background: #e67e22; }
+    textarea {
+      width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #dee2e6;
+      font-size: 13px; font-family: Arial, sans-serif; resize: vertical;
+      min-height: 70px; box-sizing: border-box; margin-bottom: 12px;
+    }
+    textarea:focus { outline: none; border-color: #3498db; }
+    .submit-btn {
+      width: 100%; padding: 12px; border-radius: 25px;
+      background: #27ae60; color: white; border: none;
+      font-size: 15px; font-weight: bold; cursor: pointer;
+      transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+    .submit-btn:disabled { background: #95a5a6; cursor: not-allowed; }
+    .submit-btn:hover:not(:disabled) { background: #219a52; transform: translateY(-1px); }
+    .result {
+      margin-top: 12px; padding: 12px 16px; border-radius: 8px;
+      font-size: 13px; display: none;
+    }
+    .result.success { background: #d4edda; color: #155724; }
+    .result.error   { background: #f8d7da; color: #721c24; }
+    .result pre { margin: 8px 0 0 0; font-size: 11px; white-space: pre-wrap; }
+    .section-box {
+      background: white; border-radius: 8px; padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>🧪 Simulazione Segnalazione GPS</h2>
+
+  <div class="sim-box">
+    ⚠️ <strong>Modalità simulazione</strong> — questa pagina invia una segnalazione REALE al DB Upstash
+    usando coordinate false a tua scelta. Utile per testare il sistema prima del deploy.
+  </div>
+
+  <div class="section-box">
+    <!-- Coordinate preset -->
+    <label>📍 Scegli posizione simulata</label>
+    <div class="coord-grid">
+      <button class="coord-btn" onclick="setCoords(41.7520, 12.7100, this)">🏔️ Monte Cavo<br><small>41.7520°N 12.7100°E</small></button>
+      <button class="coord-btn" onclick="setCoords(41.7400, 12.7200, this)">🌲 Rocca di Papa<br><small>41.7400°N 12.7200°E</small></button>
+      <button class="coord-btn" onclick="setCoords(41.8100, 12.6600, this)">🏙️ Frascati<br><small>41.8100°N 12.6600°E</small></button>
+      <button class="coord-btn" onclick="setCoords(41.7300, 12.6900, this)">🛤️ Colle Jano<br><small>41.7300°N 12.6900°E</small></button>
+    </div>
+
+    <label>✏️ Oppure inserisci coordinate personalizzate</label>
+    <div class="coord-custom">
+      <input type="number" id="customLat" placeholder="Lat (es. 41.752)" step="0.0001">
+      <input type="number" id="customLon" placeholder="Lon (es. 12.710)" step="0.0001">
+      <button class="coord-btn" onclick="setCustomCoords()" style="flex:0;white-space:nowrap">✅ Usa</button>
+    </div>
+
+    <div id="coordDisplay" style="font-size:12px; color:#27ae60; margin-bottom:14px; min-height:18px;"></div>
+
+    <!-- Tipo segnalazione -->
+    <label>🏷️ Tipo segnalazione</label>
+    <div class="kind-grid">
+      <button class="kind-btn" data-kind="ok"     onclick="selectKind(this)">🟢 Sentiero OK</button>
+      <button class="kind-btn" data-kind="muddy"  onclick="selectKind(this)">🟡 Fangoso / Bagnato</button>
+      <button class="kind-btn" data-kind="closed" onclick="selectKind(this)">🔴 Chiuso / Bloccato</button>
+      <button class="kind-btn" data-kind="danger" onclick="selectKind(this)">⚠️ Pericolo</button>
+    </div>
+
+    <!-- Descrizione -->
+    <label>📝 Descrizione</label>
+    <textarea id="desc" placeholder="Es: albero caduto al km 3, molto fango dopo la curva..." oninput="updateBtn()"></textarea>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitReport()" disabled>
+      📤 Invia Segnalazione di Test
+    </button>
+
+    <div class="result" id="result"></div>
+  </div>
+</div>
+
+<script>
+  let simLat = null, simLon = null, selectedKind = null;
+  const selClasses = { ok:'sel-ok', muddy:'sel-muddy', closed:'sel-closed', danger:'sel-danger' };
+
+  function setCoords(lat, lon, btn) {
+    simLat = lat; simLon = lon;
+    document.querySelectorAll('.coord-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('coordDisplay').textContent = `✅ Posizione: ${lat}°N  ${lon}°E`;
+    updateBtn();
+  }
+
+  function setCustomCoords() {
+    const lat = parseFloat(document.getElementById('customLat').value);
+    const lon = parseFloat(document.getElementById('customLon').value);
+    if (isNaN(lat) || isNaN(lon)) { alert('Inserisci coordinate valide'); return; }
+    simLat = lat; simLon = lon;
+    document.querySelectorAll('.coord-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('coordDisplay').textContent = `✅ Posizione personalizzata: ${lat}°N  ${lon}°E`;
+    updateBtn();
+  }
+
+  function selectKind(btn) {
+    document.querySelectorAll('.kind-btn').forEach(b =>
+      b.classList.remove('selected','sel-ok','sel-muddy','sel-closed','sel-danger'));
+    selectedKind = btn.dataset.kind;
+    btn.classList.add('selected', selClasses[selectedKind]);
+    updateBtn();
+  }
+
+  function updateBtn() {
+    const desc = document.getElementById('desc').value.trim();
+    document.getElementById('submitBtn').disabled = !(simLat && selectedKind && desc.length > 0);
+  }
+
+  async function submitReport() {
+    const desc   = document.getElementById('desc').value.trim();
+    const btn    = document.getElementById('submitBtn');
+    const result = document.getElementById('result');
+    btn.disabled = true;
+    btn.textContent = '⏳ Invio in corso...';
+    result.style.display = 'none';
+
+    try {
+      const res = await fetch('/segnala', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat: simLat, lon: simLon, kind: selectedKind, description: desc })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        result.className = 'result success';
+        result.innerHTML = `✅ <strong>Segnalazione inviata con successo!</strong>
+          <pre>${JSON.stringify(data.report, null, 2)}</pre>
+          <br>Ora vai su <a href="/avvisi">/avvisi</a> o <a href="/percorsi">/percorsi</a> per vedere il marker.`;
+      } else {
+        throw new Error(data.error);
+      }
+    } catch(e) {
+      result.className = 'result error';
+      result.innerHTML = `❌ <strong>Errore:</strong> ${e.message}`;
+    }
+
+    result.style.display = 'block';
+    btn.disabled    = false;
+    btn.textContent = '📤 Invia Segnalazione di Test';
+  }
+</script>
+</body>
+</html>

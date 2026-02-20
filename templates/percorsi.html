@@ -977,6 +977,48 @@ function deactivateSegment() {
 //  AVVIO
 // ============================================================
 loadGPXFiles();
-</script>
+
+    // ── Markers Segnalazioni Community ────────────────────────────────────────
+    const communityReports = {{ reports | tojson if reports else '[]' }};
+
+    const reportIcons = {
+      ok:     { emoji: '🟢', color: '#27ae60', label: 'Sentiero OK' },
+      muddy:  { emoji: '🟡', color: '#f7b733', label: 'Fangoso / Bagnato' },
+      closed: { emoji: '🔴', color: '#e74c3c', label: 'Chiuso / Bloccato' },
+      danger: { emoji: '⚠️', color: '#e67e22', label: 'Pericolo' },
+    };
+
+    communityReports.forEach(r => {
+      const info   = reportIcons[r.kind] || { emoji: '📍', color: '#95a5a6', label: r.kind };
+      const icon   = L.divIcon({
+        className: '',
+        html: `<div style="
+          font-size:22px; line-height:1;
+          filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+          cursor: pointer;">${info.emoji}</div>`,
+        iconAnchor: [11, 11],
+      });
+
+      const date    = r.created_at ? r.created_at.slice(0,10) : '';
+      const expires = r.expires_at  ? r.expires_at.slice(0,10)  : '';
+      const desc    = r.description ? `<br><em style="color:#555">${r.description}</em>` : '';
+
+      L.marker([r.lat, r.lon], { icon })
+        .addTo(map)
+        .bindPopup(`
+          <div style="font-size:13px; min-width:160px">
+            <strong>${info.emoji} ${info.label}</strong>${desc}
+            <div style="font-size:11px; color:#95a5a6; margin-top:6px">
+              📅 ${date} · scade ${expires}
+            </div>
+          </div>
+        `);
+    });
+
+    if (communityReports.length > 0) {
+      console.log('✅ Caricati', communityReports.length, 'marker segnalazioni community');
+    }
+
+  </script>
 </body>
 </html>

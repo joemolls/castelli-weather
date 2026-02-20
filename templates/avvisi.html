@@ -306,14 +306,87 @@
       color: #555;
     }
     
+
+    /* Report Form GPS */
+    .report-form {
+      margin-top: 12px;
+    }
+    .gps-status {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; border-radius: 8px;
+      background: #f8f9fa; border: 1px solid #dee2e6;
+      font-size: 13px; margin-bottom: 14px;
+    }
+    .gps-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #95a5a6; flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .gps-dot.acquiring { background: #f7b733; animation: pulse 1s infinite; }
+    .gps-dot.ready     { background: #27ae60; }
+    .gps-dot.error     { background: #e74c3c; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .kind-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px; margin-bottom: 12px;
+    }
+    .kind-btn {
+      padding: 10px 8px; border-radius: 8px; border: 2px solid #dee2e6;
+      background: white; cursor: pointer; font-size: 13px; font-weight: bold;
+      text-align: center; transition: all 0.15s; color: #2c3e50;
+    }
+    .kind-btn:hover       { border-color: #3498db; background: #f0f8ff; }
+    .kind-btn.selected    { color: white; border-color: transparent; }
+    .kind-btn.sel-ok      { background: #27ae60; }
+    .kind-btn.sel-muddy   { background: #f7b733; }
+    .kind-btn.sel-closed  { background: #e74c3c; }
+    .kind-btn.sel-danger  { background: #e67e22; }
+
+    .report-desc {
+      width: 100%; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid #dee2e6; font-size: 13px; font-family: Arial, sans-serif;
+      resize: vertical; min-height: 70px; box-sizing: border-box;
+      margin-bottom: 12px;
+    }
+    .report-desc:focus { outline: none; border-color: #3498db; }
+
+    .submit-btn {
+      width: 100%; padding: 12px; border-radius: 25px;
+      background: #27ae60; color: white; border: none;
+      font-size: 15px; font-weight: bold; cursor: pointer;
+      transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+    .submit-btn:hover:not(:disabled) { background: #219a52; transform: translateY(-1px); }
+    .submit-btn:disabled { background: #95a5a6; cursor: not-allowed; transform: none; }
+
+    .submit-result {
+      margin-top: 10px; padding: 10px 14px; border-radius: 8px;
+      font-size: 13px; font-weight: bold; display: none; text-align: center;
+    }
+    .submit-result.success { background: #d4edda; color: #155724; }
+    .submit-result.error   { background: #f8d7da; color: #721c24; }
+
+    /* Report markers list */
+    .report-card {
+      background: #f8f9fa; border-radius: 6px;
+      padding: 10px 12px; margin-bottom: 8px;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .report-icon { font-size: 20px; flex-shrink: 0; }
+    .report-body { flex: 1; }
+    .report-kind { font-weight: bold; font-size: 13px; color: #2c3e50; }
+    .report-desc-text { font-size: 12px; color: #555; margin-top: 2px; }
+    .report-meta { font-size: 11px; color: #95a5a6; margin-top: 4px; }
+    .report-expiry { 
+      font-size: 10px; color: #bdc3c7; 
+      background: #ecf0f1; padding: 2px 6px; border-radius: 10px;
+    }
+
     @media (max-width: 768px) {
-      .wip-grid, .links-grid {
-        grid-template-columns: 1fr;
-      }
-      
-      .feedback-header {
-        flex-direction: column;
-      }
+      .wip-grid, .links-grid { grid-template-columns: 1fr; }
+      .feedback-header { flex-direction: column; }
+      .kind-grid { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
@@ -331,32 +404,66 @@
  
   <!-- 1. SEGNALA CHIUSURE -->
   <div class="section-box highlight">
-    <h3>📢 Segnala Chiusure o Problemi ai Sentieri</h3>
-    <p>
-      Hai trovato un sentiero <strong>chiuso, pericoloso o con alberi caduti?</strong><br>
-      Aiuta tutta la community MTB dei Castelli Romani.
-    </p>
-    <div style="text-align:center;">
-      <a href="https://forms.gle/TLSmUMZ5nKHWzEf38" target="_blank" class="form-button">
-        📝 Compila la Segnalazione (anonima)
-      </a>
-    </div>
-    
-    <!-- FEEDBACK RICEVUTI -->
-    {% if feedbacks and feedbacks|length > 0 %}
-    <div class="feedback-list">
-      <h4 style="color:#27ae60; margin: 20px 0 12px 0; font-size: 16px;">📋 Ultime Segnalazioni Ricevute</h4>
-      {% for feedback in feedbacks[:5] %}
-      <div class="feedback-card">
-        <div class="feedback-header">
-          <span class="feedback-location">{{ feedback.location }}</span>
-          <span class="feedback-date">{{ feedback.date }}</span>
-        </div>
-        <div class="feedback-description">{{ feedback.description }}</div>
+    <h3>📍 Segnala Condizioni Sentiero</h3>
+    <p>Anonimo — la posizione GPS viene rilevata automaticamente dal tuo dispositivo.</p>
+
+    <div class="report-form">
+      <!-- Stato GPS -->
+      <div class="gps-status" id="gpsStatus">
+        <div class="gps-dot acquiring" id="gpsDot"></div>
+        <span id="gpsText">Rilevamento posizione in corso...</span>
       </div>
-      {% endfor %}
+
+      <!-- Tipo segnalazione -->
+      <div class="kind-grid">
+        <button class="kind-btn" data-kind="ok"     onclick="selectKind(this)">🟢 Sentiero OK</button>
+        <button class="kind-btn" data-kind="muddy"  onclick="selectKind(this)">🟡 Fangoso / Bagnato</button>
+        <button class="kind-btn" data-kind="closed" onclick="selectKind(this)">🔴 Chiuso / Bloccato</button>
+        <button class="kind-btn" data-kind="danger" onclick="selectKind(this)">⚠️ Pericolo</button>
+      </div>
+
+      <!-- Descrizione -->
+      <textarea class="report-desc" id="reportDesc" oninput="updateSubmitBtn()" 
+        placeholder="Descrizione obbligatoria — es: albero caduto al km 3, molto fango dopo la curva..." required></textarea>
+
+      <!-- Invia -->
+      <button class="submit-btn" id="submitBtn" onclick="submitReport()" disabled>
+        📤 Invia Segnalazione
+      </button>
+      <div class="submit-result" id="submitResult"></div>
     </div>
-    {% endif %}
+
+    <!-- SEGNALAZIONI ATTIVE -->
+    <div style="margin-top: 20px;">
+      <h4 style="color:#27ae60; margin: 0 0 12px 0; font-size: 16px;">
+        📋 Segnalazioni Attive
+        <span style="font-size:12px; color:#95a5a6; font-weight:normal;">
+          — rimangono per 21 giorni
+        </span>
+      </h4>
+      {% if reports and reports|length > 0 %}
+        {% for r in reports %}
+        {% set icons = {"ok": "🟢", "muddy": "🟡", "closed": "🔴", "danger": "⚠️"} %}
+        {% set labels = {"ok": "Sentiero OK", "muddy": "Fangoso / Bagnato", "closed": "Chiuso / Bloccato", "danger": "Pericolo"} %}
+        <div class="report-card">
+          <div class="report-icon">{{ icons.get(r.kind, "📍") }}</div>
+          <div class="report-body">
+            <div class="report-kind">{{ labels.get(r.kind, r.kind) }}</div>
+            {% if r.description %}
+            <div class="report-desc-text">{{ r.description }}</div>
+            {% endif %}
+            <div class="report-meta">
+              📌 {{ r.lat | round(4) }}°N {{ r.lon | round(4) }}°E &nbsp;·&nbsp;
+              🕐 {{ r.created_at[:10] }}
+              <span class="report-expiry">scade {{ r.expires_at[:10] }}</span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="color:#95a5a6; font-size:13px;">Nessuna segnalazione attiva al momento.</p>
+      {% endif %}
+    </div>
   </div>
 
   <!-- 2. WORK IN PROGRESS -->
@@ -394,7 +501,7 @@
         <p>Ordinanze e comunicazioni ufficiali</p>
       </div>
       <div class="link-item">
-        <a href="mailto:protocollo@parcocastelliromani.it">📧 protocollo@parcocastelliromani.it</a>
+        <a href="/cdn-cgi/l/email-protection#7e0e0c110a111d111212113e0e1f0c1d111d1f0d0a1b1212170c11131f101750170a">📧 <span class="__cf_email__" data-cfemail="2454564b504b474b48484b64544556474b474557504148484d564b49454a4d0a4d50">[email&#160;protected]</span></a>
         <p>Per segnalazioni e comunicazioni ufficiali</p>
       </div>
       <div class="link-item">
@@ -501,9 +608,4 @@
     </div>
   </div>
   
-  <div style="max-width: 1000px; margin: 30px auto; text-align: center;">
-    <a href="/" class="back-button">← Torna alle Previsioni Meteo</a>
-  </div>
-  
-</body>
-</html>
+  <div styl

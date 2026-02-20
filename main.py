@@ -7,6 +7,7 @@ from weather_client import fetch_weather, fetch_weather_history
 from scraper import get_all_alerts
 from strava_client import fetch_starred_segments
 from counter import increment_visit
+from reports import save_report, get_active_reports
 from datetime import datetime, timedelta
 import csv
 import httpx
@@ -617,15 +618,43 @@ async def dashboard_completa(request: Request):
         "visit_stats":         visit_stats,
     })
 
+
+
+@app.get("/sim-report", response_class=HTMLResponse)
+async def sim_report():
+    """Pagina di simulazione segnalazione GPS — solo per test."""
+    with open("templates/sim_report.html", "r") as f:
+        return f.read()
+
+@app.post("/segnala")
+async def segnala(request: Request):
+    """Salva una segnalazione con posizione GPS su Upstash Redis."""
+    try:
+        body = await request.json()
+        lat  = float(body.get("lat", 0))
+        lon  = float(body.get("lon", 0))
+        kind = body.get("kind", "")
+        desc = body.get("description", "")
+
+        if not lat or not lon or not kind:
+            return {"ok": False, "error": "Dati mancanti"}
+
+        report = save_report(lat, lon, kind, desc)
+        return {"ok": True, "report": report}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
 @app.get("/avvisi", response_class=HTMLResponse)
 async def avvisi(request: Request):
     increment_visit(page="avvisi")
     alerts    = await get_all_alerts()
     feedbacks = await fetch_form_feedbacks()
+    reports   = get_active_reports()
     return templates.TemplateResponse("avvisi.html", {
-        "request": request,
+        "request":   request,
         "alerts":    alerts,
         "feedbacks": feedbacks,
+        "reports":   reports,
     })
 
 @app.get("/percorsi", response_class=HTMLResponse)
@@ -676,6 +705,7 @@ async def percorsi(request: Request):
     #strava_all_activities = await fetch_all_club_activities()
     starred_segments      = await fetch_starred_segments()
 
+    reports = get_active_reports()
     return templates.TemplateResponse("percorsi.html", {
         "request":                   request,
         "gpx_forecasts":             gpx_forecasts,
@@ -684,4 +714,5 @@ async def percorsi(request: Request):
         #"strava_club_info":         strava_club_info,
         #"strava_all_activities":    strava_all_activities,
         "starred_segments":          starred_segments,
+        "reports":                   reports,
     })
