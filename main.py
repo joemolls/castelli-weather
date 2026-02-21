@@ -22,6 +22,13 @@ app = FastAPI(title="Castelli Weather API")
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+@app.on_event("startup")
+async def startup_event():
+    """Pre-carica i file GPX in memoria al boot — evita parsing XML ad ogni request."""
+    import asyncio
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, preload_gpx_cache)
+
 # ─── Health check ────────────────────────────────────────────────────────────
 @app.head("/")
 async def head_root():
@@ -40,37 +47,76 @@ GPX_FILES = [
     {"key": "gpx-4", "file": "static/gpx/P2P_Castelli_Romani.gpx",  "name": "P2P Castelli Romani",      "color": "#8e44ad"},
 ]
 
-def get_gpx_centroid(filepath: str):
-    """
-    Estrae latitudine e longitudine medie di un file GPX.
-    Parsing XML senza dipendenze esterne. Campiona 1 punto ogni 50
-    per non leggere milioni di coordinate su file grandi.
-    """
-    try:
-        tree = ET.parse(filepath)
-        root = tree.getroot()
-        # Namespace GPX 1.1 (il più comune)
-        ns = {"g": "http://www.topografix.com/GPX/1/1"}
-        points = root.findall(".//g:trkpt", ns)
-        if not points:
-            # Prova senza namespace (GPX 1.0 o file non standard)
-            points = root.findall(".//{http://www.topografix.com/GPX/1/0}trkpt")
-        if not points:
-            points = root.findall(".//trkpt")
-        if not points:
-            return None, None
+# ─── Cache in-memory GPX (popolata una sola volta al primo accesso) ────────────
+# I file GPX non cambiano mai a runtime — non ha senso rileggerli ad ogni request.
+# Struttura: { "gpx-0": {"centroid": (lat, lon), "coords": [[lat,lon], ...]}, ... }
+_GPX_CACHE: dict = {}
 
-        # Campiona per velocità su file grandi
-        step = max(1, len(points) // 200)
+def _parse_gpx_points(filepath: str):
+    """Parsing XML interno — chiamato una sola volta per file."""
+    tree = ET.parse(filepath)
+    root = tree.getroot()
+    ns = {"g": "http://www.topografix.com/GPX/1/1"}
+    points = root.findall(".//g:trkpt", ns)
+    if not points:
+        points = root.findall(".//{http://www.topografix.com/GPX/1/0}trkpt")
+    if not points:
+        points = root.findall(".//trkpt")
+    return points
+
+
+def _ensure_gpx_cached(key: str, filepath: str, max_points: int = 300):
+    """Carica e cachea un GPX in memoria se non già presente."""
+    if key in _GPX_CACHE:
+        return
+    try:
+        points = _parse_gpx_points(filepath)
+        if not points:
+            _GPX_CACHE[key] = {"centroid": (None, None), "coords": []}
+            return
+
+        # Coordinate complete campionate per Leaflet
+        step   = max(1, len(points) // max_points)
         sample = points[::step]
-        lats = [float(p.get("lat")) for p in sample if p.get("lat")]
-        lons = [float(p.get("lon")) for p in sample if p.get("lon")]
-        if not lats:
-            return None, None
-        return round(sum(lats) / len(lats), 5), round(sum(lons) / len(lons), 5)
+        coords = [[round(float(p.get("lat")), 5), round(float(p.get("lon")), 5)]
+                  for p in sample if p.get("lat") and p.get("lon")]
+
+        # Centroide (media su tutti i punti, non solo il campione)
+        step2  = max(1, len(points) // 200)
+        sample2 = points[::step2]
+        lats   = [float(p.get("lat")) for p in sample2 if p.get("lat")]
+        lons   = [float(p.get("lon")) for p in sample2 if p.get("lon")]
+        centroid = (round(sum(lats)/len(lats), 5), round(sum(lons)/len(lons), 5)) if lats else (None, None)
+
+        _GPX_CACHE[key] = {"centroid": centroid, "coords": coords}
+        print(f"  📍 GPX cachato in memoria: {filepath} ({len(coords)} punti)")
     except Exception as e:
-        print(f"Errore lettura GPX {filepath}: {e}")
-        return None, None
+        print(f"  ⚠️ Errore lettura GPX {filepath}: {e}")
+        _GPX_CACHE[key] = {"centroid": (None, None), "coords": []}
+
+
+def get_gpx_centroid(filepath: str):
+    """Restituisce il centroide di un GPX (dalla cache in memoria)."""
+    key = next((g["key"] for g in GPX_FILES if g["file"] == filepath), filepath)
+    _ensure_gpx_cached(key, filepath)
+    return _GPX_CACHE[key]["centroid"]
+
+
+def get_gpx_coords(filepath: str, max_points: int = 300):
+    """Restituisce le coordinate campionate di un GPX (dalla cache in memoria)."""
+    key = next((g["key"] for g in GPX_FILES if g["file"] == filepath), filepath)
+    _ensure_gpx_cached(key, filepath, max_points)
+    return _GPX_CACHE[key]["coords"]
+
+
+def preload_gpx_cache():
+    """Chiamata al startup — carica tutti i GPX in memoria una sola volta."""
+    print("🗺️ Pre-caricamento GPX in memoria...")
+    for g in GPX_FILES:
+        _ensure_gpx_cached(g["key"], g["file"])
+    print(f"  ✅ {len(_GPX_CACHE)}/{len(GPX_FILES)} GPX cachati")
+
+
 
 # ─── Calcolo condizioni ───────────────────────────────────────────────────────
 def calculate_trail_conditions(hourly_data):
@@ -1316,21 +1362,20 @@ async def percorsi(request: Request):
         if lat is None:
             lat, lon = 41.745, 12.720
         zone = nearest_zone(lat, lon)
-        gpx_with_coords.append({**gpx, "lat": lat, "lon": lon, "zone": zone})
+        coords = get_gpx_coords(gpx["file"])
+        gpx_with_coords.append({**gpx, "lat": lat, "lon": lon, "zone": zone, "coords": coords})
 
-    # Tutto in parallelo: meteo + storico per ogni GPX + segmenti Strava in un unico gather
+    # Fetch meteo + storico per ogni GPX in PARALLELO
     import asyncio
-    all_results = await asyncio.gather(
-        *[cached_fetch_weather(g["lat"], g["lon"], fetch_weather) for g in gpx_with_coords],
-        *[cached_fetch_weather_history(g["zone"]["lat"], g["zone"]["lon"], 5, fetch_weather_history) for g in gpx_with_coords],
-        cached_fetch_starred_segments(fetch_starred_segments),
-        return_exceptions=True,
-    )
+    weather_results = await asyncio.gather(*[
+        cached_fetch_weather(g["lat"], g["lon"], fetch_weather)
+        for g in gpx_with_coords
+    ], return_exceptions=True)
 
-    n = len(gpx_with_coords)
-    weather_results  = all_results[:n]
-    history_results  = all_results[n:2*n]
-    starred_segments = all_results[2*n] if not isinstance(all_results[2*n], Exception) else []
+    history_results = await asyncio.gather(*[
+        cached_fetch_weather_history(g["zone"]["lat"], g["zone"]["lon"], 5, fetch_weather_history)
+        for g in gpx_with_coords
+    ], return_exceptions=True)
 
     gpx_forecasts = []
     for gpx, weather, history in zip(gpx_with_coords, weather_results, history_results):
@@ -1370,6 +1415,7 @@ async def percorsi(request: Request):
             "name":           gpx["name"],
             "color":          gpx["color"],
             "file":           gpx["file"],
+            "coords":         gpx.get("coords", []),
             "lat":            gpx["lat"],
             "lon":            gpx["lon"],
             "zone_name":      zone["name"],
@@ -1394,6 +1440,7 @@ async def percorsi(request: Request):
 
     #strava_club_info      = await fetch_club_info()
     #strava_all_activities = await fetch_all_club_activities()
+    starred_segments      = await cached_fetch_starred_segments(fetch_starred_segments)
 
     reports = get_active_reports()
     return templates.TemplateResponse("percorsi.html", {

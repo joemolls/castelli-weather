@@ -7,7 +7,6 @@
   <link rel="icon" href="https://em-content.zobj.net/thumbs/120/apple/354/mountain_26f0-fe0f.png" type="image/png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background-color: #ecf0f1; }
@@ -399,14 +398,13 @@
 
 <script>
 // ============================================================
-//  CONFIGURAZIONE GPX — colori identici a main.py
+//  CONFIGURAZIONE GPX — iniettata server-side (coordinate inline)
+//  Elimina 5 richieste HTTP + parsing XML nel browser
 // ============================================================
 var GPX_FILES = [
-  { key: 'gpx-0', file: '/static/gpx/AeB_AmiciBici_C.R.1.gpx',  name: 'Amici & Bici C.R.1',        color: '#27ae60' },
-  { key: 'gpx-1', file: '/static/gpx/Like_Epic_100_C.R.6.gpx',  name: 'Like Epic 100 C.R.6',       color: '#e67e22' },
-  { key: 'gpx-2', file: '/static/gpx/Like_Epic_50_C.R.4.gpx',   name: 'Like Epic 50 C.R.4',        color: '#2980b9' },
-  { key: 'gpx-3', file: '/static/gpx/Monte_Cavo_Colle_Iano.gpx', name: 'Monte Cavo - Colle Jano', color: '#e74c3c' },
-  { key: 'gpx-4', file: '/static/gpx/P2P_Castelli_Romani.gpx',  name: 'P2P Castelli Romani',      color: '#8e44ad' }
+  {% for g in gpx_forecasts %}
+  { key: {{ g.key | tojson }}, file: {{ g.file | tojson }}, name: {{ g.name | tojson }}, color: {{ g.color | tojson }}, coords: {{ g.coords | tojson }} }{{ "," if not loop.last }}
+  {% endfor %}
 ];
 
 // ============================================================
@@ -531,54 +529,37 @@ function updateHint(key) {
 }
 
 // ============================================================
-//  CARICAMENTO GPX
+//  CARICAMENTO GPX — usa coordinate inline (no HTTP fetch, no XML parsing)
 // ============================================================
 function loadGPXFiles() {
-  document.getElementById('mapStatus').textContent = 'Caricamento ' + GPX_FILES.length + ' tracciati GPX...';
+  document.getElementById('mapStatus').textContent = 'Rendering ' + GPX_FILES.length + ' tracciati...';
 
   GPX_FILES.forEach(function(gpxInfo) {
-    new L.GPX(gpxInfo.file, {
-      async: true,
-      polyline_options: {
-        color:     gpxInfo.color,
-        weight:    4,
-        opacity:   0.85,
-        dashArray: '10,5',
-        lineJoin:  'round',
-        lineCap:   'round'
-      },
-      marker_options: {
-        startIconUrl: null, endIconUrl: null, shadowUrl: null,
-        wptIconUrls: { '': null }
-      }
-    })
-    .on('loaded', function(e) {
-      var allBoundsArr = [];
-      e.target.getLayers().forEach(function(l) {
-        if (typeof l.getLatLngs !== 'function') return;
-        l.bindPopup('<b>' + gpxInfo.name + '</b><br><small style="color:#888">GPX locale</small>');
-        l.addTo(gpxLayer);
-        gpxData[gpxInfo.key].polylines.push(l);
-        try { allBoundsArr.push(l.getBounds()); } catch(e2) {}
-      });
-
-      // Calcola bounds unificato per il percorso
-      if (allBoundsArr.length) {
-        var combined = allBoundsArr[0];
-        for (var i = 1; i < allBoundsArr.length; i++) {
-          combined = combined.extend(allBoundsArr[i]);
-        }
-        gpxData[gpxInfo.key].bounds = combined;
-      }
-
+    var coords = gpxInfo.coords;
+    if (!coords || coords.length < 2) {
       loadedCount++;
       onGPXLoaded();
-    })
-    .on('error', function() {
-      console.warn('Errore GPX:', gpxInfo.file);
-      loadedCount++;
-      onGPXLoaded();
+      return;
+    }
+
+    var pl = L.polyline(coords, {
+      color:     gpxInfo.color,
+      weight:    4,
+      opacity:   0.85,
+      dashArray: '10,5',
+      lineJoin:  'round',
+      lineCap:   'round'
     });
+    pl.bindPopup('<b>' + gpxInfo.name + '</b><br><small style="color:#888">GPX locale</small>');
+    pl.addTo(gpxLayer);
+    gpxData[gpxInfo.key].polylines.push(pl);
+
+    try {
+      gpxData[gpxInfo.key].bounds = pl.getBounds();
+    } catch(e2) {}
+
+    loadedCount++;
+    onGPXLoaded();
   });
 }
 
@@ -712,39 +693,10 @@ function revealPage() {
     return;
   }
 
-  // ❌ CACHE MISS — animazione normale
+  // ❌ CACHE MISS — mostra la pagina appena il DOM è pronto (nessun delay artificiale)
   console.log('[cache] Miss — caricamento da server');
-  var steps = [
-    { id: 'step1', delay: 0,   progress: 30 },
-    { id: 'step2', delay: 500, progress: 70 },
-    { id: 'step3', delay: 900, progress: 90 },
-  ];
-  var colors = { done: '#27ae60', active: '#2c3e50' };
-
-  steps.forEach(function(s, i) {
-    setTimeout(function() {
-      var el = document.getElementById(s.id);
-      if (!el) return;
-      el.style.display = 'block';
-      el.style.color = colors.active;
-      if (i > 0) {
-        var prev = document.getElementById(steps[i-1].id);
-        if (prev) prev.style.color = colors.done;
-      }
-      document.getElementById('loadingProgress').style.width = s.progress + '%';
-    }, s.delay);
-  });
-
-  setTimeout(function() {
-    document.getElementById('loadingProgress').style.width = '100%';
-    var last = document.getElementById(steps[steps.length-1].id);
-    if (last) last.style.color = colors.done;
-    setTimeout(function() {
-      revealPage();
-      // Salva in cache dopo il primo carico riuscito
-      saveToCache();
-    }, 400);
-  }, 1400);
+  revealPage();
+  saveToCache();
 })();
 
 // ============================================================
