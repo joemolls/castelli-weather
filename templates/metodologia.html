@@ -98,7 +98,7 @@
   <div class="section">
     <h2>🧩 Il problema: perché il meteo non basta</h2>
     <div class="subtitle-text">La pioggia è solo l'inizio — quello che conta è come il terreno la trattiene</div>
-    <p>Sapere che ha piovuto 66mm in 7 giorni non ti dice se puoi uscire in MTB domani. Un terreno sabbioso asciuga in un giorno, un terreno argilloso resta fangoso per una settimana. I Castelli Romani hanno una geologia vulcanica complessa: ogni zona si comporta diversamente.</p>
+    <p>Sapere che ha piovuto 66mm in 5 giorni non ti dice se puoi uscire in MTB domani. Un terreno sabbioso asciuga in un giorno, un terreno argilloso resta fangoso per una settimana. I Castelli Romani hanno una geologia vulcanica complessa: ogni zona si comporta diversamente.</p>
     <p>Il sistema usa due indici per dare una risposta pratica: <strong>SMI</strong> (stato attuale del terreno) e <strong>Recovery Rate</strong> (velocità di recupero specifica per ogni zona).</p>
   </div>
 
@@ -108,7 +108,7 @@
     <div class="subtitle-text">Quanto è "pieno" il terreno rispetto alla sua capacità massima</div>
 
     <div class="formula">
-      <strong>SMI</strong> = Pioggia ultimi 7gg (mm)  ÷  Field Capacity della zona (mm)
+      <strong>SMI</strong> = Pioggia ultimi 5gg (mm)  ÷  Field Capacity della zona (mm)
     </div>
 
     <p>La <strong>Field Capacity</strong> è la quantità massima di acqua che il terreno può trattenere prima di saturarsi. Dipende dalla composizione geologica di ogni zona.</p>
@@ -136,7 +136,7 @@
     </ul>
 
     <div class="warning">
-      ⚠️ <strong>Esempio pratico:</strong> Monte Cavo ha Field Capacity = 45mm. Con 66mm caduti in 7 giorni: SMI = 66÷45 = <strong>1.47</strong> → 🔴 Non Praticabile. Stesso scenario su Maschio d'Ariano (FC = 52mm): SMI = 66÷52 = <strong>1.27</strong> → 🔴 Non Praticabile, ma molto più vicino alla soglia e recupera prima.
+      ⚠️ <strong>Esempio pratico:</strong> Monte Cavo ha Field Capacity = 45mm. Con 66mm caduti in 5 giorni: SMI = 66÷45 = <strong>1.47</strong> → 🔴 Non Praticabile. Stesso scenario su Maschio d'Ariano (FC = 52mm): SMI = 66÷52 = <strong>1.27</strong> → 🔴 Non Praticabile, ma molto più vicino alla soglia e recupera prima.
     </div>
   </div>
 
@@ -255,7 +255,7 @@
   <div class="section">
     <h2>📚 Fonti e riferimenti</h2>
     <ul>
-      <li><strong>Dati meteo:</strong> <a href="https://open-meteo.com" style="color:#3498db">Open-Meteo API</a> — storico 7 giorni + previsioni 72h</li>
+      <li><strong>Dati meteo:</strong> <a href="https://open-meteo.com" style="color:#3498db">Open-Meteo API</a> — storico 5 giorni + previsioni 72h</li>
       <li><strong>Geologia:</strong> Carta Geologica d'Italia 1:50.000 — Fogli 387 (Frascati) e 388 (Velletri)</li>
       <li><strong>Parametri SMI:</strong> adattamento da USDA Soil Moisture Classification e letteratura su suoli vulcanici del Lazio (Capra et al., 2003)</li>
       <li><strong>Soglie MTB:</strong> basate su linee guida IMBA (International Mountain Bicycling Association) per la protezione dei sentieri</li>
