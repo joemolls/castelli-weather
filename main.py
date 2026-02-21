@@ -1318,17 +1318,19 @@ async def percorsi(request: Request):
         zone = nearest_zone(lat, lon)
         gpx_with_coords.append({**gpx, "lat": lat, "lon": lon, "zone": zone})
 
-    # Fetch meteo + storico per ogni GPX in PARALLELO
+    # Tutto in parallelo: meteo + storico per ogni GPX + segmenti Strava in un unico gather
     import asyncio
-    weather_results = await asyncio.gather(*[
-        cached_fetch_weather(g["lat"], g["lon"], fetch_weather)
-        for g in gpx_with_coords
-    ], return_exceptions=True)
+    all_results = await asyncio.gather(
+        *[cached_fetch_weather(g["lat"], g["lon"], fetch_weather) for g in gpx_with_coords],
+        *[cached_fetch_weather_history(g["zone"]["lat"], g["zone"]["lon"], 5, fetch_weather_history) for g in gpx_with_coords],
+        cached_fetch_starred_segments(fetch_starred_segments),
+        return_exceptions=True,
+    )
 
-    history_results = await asyncio.gather(*[
-        cached_fetch_weather_history(g["zone"]["lat"], g["zone"]["lon"], 5, fetch_weather_history)
-        for g in gpx_with_coords
-    ], return_exceptions=True)
+    n = len(gpx_with_coords)
+    weather_results  = all_results[:n]
+    history_results  = all_results[n:2*n]
+    starred_segments = all_results[2*n] if not isinstance(all_results[2*n], Exception) else []
 
     gpx_forecasts = []
     for gpx, weather, history in zip(gpx_with_coords, weather_results, history_results):
@@ -1392,7 +1394,6 @@ async def percorsi(request: Request):
 
     #strava_club_info      = await fetch_club_info()
     #strava_all_activities = await fetch_all_club_activities()
-    starred_segments      = await cached_fetch_starred_segments(fetch_starred_segments)
 
     reports = get_active_reports()
     return templates.TemplateResponse("percorsi.html", {

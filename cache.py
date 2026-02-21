@@ -12,6 +12,7 @@ Il vecchio approccio GET /set/key/value rompeva l'URL con dati JSON complessi.
 
 import os
 import json
+import asyncio
 import httpx
 from datetime import datetime
 
@@ -22,6 +23,9 @@ UPSTASH_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN", "")
 TTL_FORECAST = 60 * 60        # 60 minuti (ICON aggiorna ogni 3h)
 TTL_HISTORY  = 2  * 60 * 60   # 2 ore
 TTL_STRAVA   = 6  * 60 * 60   # 6 ore
+
+# Semaforo: max 2 chiamate simultanee all'Archive API (evita 429)
+_ARCHIVE_SEMAPHORE = asyncio.Semaphore(2)
 
 
 # ─── Upstash helpers ──────────────────────────────────────────────────────────
@@ -114,7 +118,14 @@ async def cached_fetch_weather_history(lat: float, lon: float, days: int, fetch_
         return cached
 
     print(f"  🌐 Cache MISS history {_coord_key(lat, lon)} days={days} — chiamo Archive API")
-    data = await fetch_fn(lat, lon, days)
+    async with _ARCHIVE_SEMAPHORE:
+        # Ricontrollo cache dentro il semaforo: un'altra coroutine potrebbe
+        # aver già scritto il risultato mentre aspettavamo il semaforo
+        cached = _redis_get(key)
+        if cached is not None:
+            print(f"  📦 Cache HIT history {_coord_key(lat, lon)} days={days} (post-semaphore)")
+            return cached
+        data = await fetch_fn(lat, lon, days)
     _redis_set(key, data, TTL_HISTORY)
     return data
 
