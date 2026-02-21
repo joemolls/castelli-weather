@@ -14,11 +14,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Bounding Box Castelli Romani
+# Valori derivati dal perimetro ufficiale del Parco Regionale (gen. 2026)
+# Geoportale Regione Lazio — coerente con PTPR 2021 + DGR 228/2022
+# Lat: 41.6697 → 41.8198  |  Lon: 12.5828 → 12.8497  (+0.01° buffer su ogni lato)
 CASTELLI_BBOX = {
-    "lat_nord": 41.7974,
-    "lat_sud": 41.6906,
-    "lon_ovest": 12.7041,
-    "lon_est": 12.7195
+    "lat_nord": 41.8298,
+    "lat_sud":  41.6597,
+    "lon_ovest": 12.5728,
+    "lon_est":   12.8597,
 }
 
 print(f"📦 Bounding Box Castelli Romani:")

@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Castelli Romani - Percorsi</title>
+  <link rel="icon" href="https://em-content.zobj.net/thumbs/120/apple/354/mountain_26f0-fe0f.png" type="image/png">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background-color: #ecf0f1; }
+
+    .title-container {
+      max-width: 1100px; margin: 0 auto 8px auto;
+      display: flex; justify-content: center; align-items: center; gap: 15px; flex-wrap: wrap;
+    }
+    h1 { color: #2c3e50; margin: 0; text-align: center; }
+    .nav-links { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .nav-link {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white; padding: 8px 18px; border-radius: 25px; text-decoration: none;
+      font-weight: bold; font-size: 13px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s; white-space: nowrap;
+    }
+    .nav-link:hover { transform: translateY(-2px); }
+    .nav-link.active { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); }
+    .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 15px; font-size: 14px; }
+    .main-container { max-width: 1100px; margin: 0 auto; }
+
+    .card {
+      background: white; border-radius: 8px; padding: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 15px;
+    }
+    .card-title {
+      margin: 0 0 12px 0; color: #2c3e50; font-size: 15px; font-weight: bold;
+      border-bottom: 2px solid #3498db; padding-bottom: 6px;
+    }
+    .card-title.green  { border-bottom-color: #27ae60; }
+    .card-title.orange { border-bottom-color: #e67e22; }
+
+    /* Mappa */
+    #map { height: 480px; border-radius: 6px; border: 1px solid #ddd; }
+    .map-footer {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 8px; font-size: 12px; color: #7f8c8d; flex-wrap: wrap; gap: 8px;
+    }
+    #mapStatus { flex: 1; }
+    .btn-osm {
+      padding: 5px 14px; border-radius: 12px; border: 2px solid #95a5a6;
+      color: #7f8c8d; background: white; cursor: pointer; font-size: 11px;
+      font-weight: bold; transition: all 0.15s;
+    }
+    .btn-osm:hover:not(:disabled) { background: #95a5a6; color: white; }
+    .btn-osm:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-osm.active-osm { border-color: #27ae60; color: #27ae60; }
+    .btn-osm.active-osm:hover:not(:disabled) { background: #27ae60; color: white; }
+
+    /* Legenda OSM */
+    #osmLegend {
+      display: none;
+      margin-top: 8px; padding: 8px 12px;
+      background: #f8f9fa; border-radius: 6px; border-left: 3px solid #27ae60;
+      font-size: 11px;
+    }
+    #osmLegend .osm-legend-title {
+      font-weight: bold; color: #2c3e50; margin-bottom: 5px; font-size: 12px;
+    }
+    .osm-legend-items { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+    .osm-legend-item  { display: flex; align-items: center; gap: 5px; }
+    .osm-legend-line  { width: 28px; height: 4px; border-radius: 2px; flex-shrink: 0; }
+    .osm-legend-line.thick { height: 6px; }
+    .osm-legend-label { color: #555; }
+
+    /* Lista percorsi GPX */
+    .gpx-list {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    @media (max-width: 900px) { .gpx-list { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 600px) { .gpx-list { grid-template-columns: repeat(2, 1fr); } }
+    .gpx-pill {
+      display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+      padding: 6px 10px;
+      border-radius: 8px; background: #f8f9fa; border-left: 5px solid #ccc;
+      cursor: pointer; transition: all 0.15s; user-select: none;
+    }
+    .gpx-pill:hover { background: #f0f4f8; }
+    .gpx-pill.active {
+      background: #fff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+    .gpx-pill.dimmed { opacity: 0.4; }
+    .gpx-color-bar { width: 5px; height: 36px; border-radius: 3px; flex-shrink: 0; }
+    .gpx-pill-info { flex: 1; min-width: 0; }
+    .gpx-pill-name { font-weight: bold; color: #2c3e50; font-size: 13px; }
+    .gpx-pill-hint { display: none; }
+    .gpx-pill-badge {
+      font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: bold;
+      white-space: nowrap;
+    }
+    /* Segmenti Strava — griglia card */
+    .seg-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 8px; margin-top: 10px;
+    }
+    .seg-pill {
+      display: flex; flex-direction: column; gap: 3px;
+      padding: 9px 12px 9px 14px;
+      border-radius: 6px; background: white;
+      border-left: 4px solid #fc4c02;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.09);
+      cursor: pointer; transition: all 0.15s; user-select: none;
+    }
+    .seg-pill:hover { box-shadow: 0 3px 10px rgba(252,76,2,0.18); }
+    .seg-pill.active { box-shadow: 0 3px 12px rgba(252,76,2,0.32); border-left-width: 5px; }
+    .seg-pill.dimmed { opacity: 0.28; }
+    .seg-pill-name { font-weight: bold; color: #2c3e50; font-size: 13px; line-height: 1.3; }
+    .seg-pill-row { font-size: 11px; color: #7f8c8d; line-height: 1.6; }
+    .seg-pill-row .kom { color: #fc4c02; font-weight: bold; }
+    .seg-pill-row .pr  { color: #27ae60; font-weight: bold; }
+    .hint-bar {
+      font-size: 11px; color: #7f8c8d; text-align: center;
+      padding: 6px; background: #f8f9fa; border-radius: 6px; margin-top: 8px;
+    }
+
+    /* Label mappa */
+    .leaflet-tooltip.trail-label {
+      background: rgba(44,62,80,0.93); border: none; border-radius: 6px;
+      padding: 5px 14px; font-weight: bold; font-size: 13px; color: white;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.4); white-space: nowrap; pointer-events: none;
+    }
+    .leaflet-tooltip.trail-label::before { border-top-color: rgba(44,62,80,0.93); }
+
+    /* Meteo per GPX */
+    .forecast-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 12px; margin-bottom: 15px;
+    }
+    .forecast-card {
+      background: white; border-radius: 8px; padding: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 5px solid #3498db;
+    }
+    .forecast-card h4 {
+      margin: 0 0 2px 0; color: #2c3e50; font-size: 14px; font-weight: bold;
+    }
+    .forecast-coords { font-size: 10px; color: #bdc3c7; margin-bottom: 8px; }
+    .condition-badge { font-weight: bold; font-size: 13px; margin-bottom: 8px; display: block; }
+    .condition-badge.excellent { color: #27ae60; }
+    .condition-badge.good      { color: #e67e22; }
+    .condition-badge.poor      { color: #e74c3c; }
+    .soil-badge {
+      display: inline-block; font-weight: bold; font-size: 12px;
+      padding: 3px 10px; border-radius: 12px; margin-bottom: 6px;
+    }
+    .soil-badge.excellent { background: rgba(39,174,96,0.12);  color: #27ae60; }
+    .soil-badge.good      { background: rgba(230,126,34,0.12); color: #e67e22; }
+    .soil-badge.poor      { background: rgba(231,76,60,0.10);  color: #e74c3c; }
+    .soil-forecast-mini { margin-bottom: 8px; }
+    .soil-forecast-mini-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px; padding: 2px 0; color: #555;
+    }
+    .soil-forecast-mini-day { font-weight: bold; min-width: 60px; color: #2c3e50; }
+    .riding-windows { display: flex; flex-direction: column; gap: 5px; }
+    .day-window {
+      padding: 6px 10px; border-radius: 5px; font-size: 12px;
+      border-left: 3px solid #ccc; background: #f8f9fa;
+    }
+    .day-window.excellent { border-left-color: #27ae60; background: #f0faf4; }
+    .day-window.good      { border-left-color: #e67e22; background: #fef9f0; }
+    .day-window.poor      { border-left-color: #e74c3c; background: #fdf0f0; }
+    .day-window.medium    { border-left-color: #e67e22; background: #fef5ec; }
+    .day-window-header {
+      display: flex; justify-content: space-between; align-items: center;
+      font-weight: bold; margin-bottom: 2px;
+    }
+    .day-window-title { color: #2c3e50; font-size: 12px; }
+    .day-window-time  { color: #7f8c8d; font-weight: normal; font-size: 11px; }
+    .day-window-details { color: #7f8c8d; font-size: 11px; }
+    .no-windows { font-size: 12px; color: #e74c3c; font-style: italic; }
+
+    /* Strava */
+    .strava-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;
+    }
+    @media (max-width: 700px) { .strava-grid { grid-template-columns: 1fr; } }
+    .activity-list { display: flex; flex-direction: column; gap: 8px; }
+    .activity-item {
+      background: #f8f9fa; border-radius: 6px; padding: 10px 12px;
+      border-left: 4px solid #fc4c02; font-size: 12px;
+    }
+    .activity-athlete { font-weight: bold; color: #2c3e50; margin-bottom: 2px; font-size: 13px; }
+    .activity-name { color: #555; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .activity-stats { display: flex; gap: 12px; color: #7f8c8d; font-size: 11px; }
+    .segments-list { display: flex; flex-direction: column; gap: 6px; }
+    .segment-item {
+      background: #f8f9fa; border-radius: 6px; padding: 8px 12px;
+      border-left: 4px solid #fc4c02; font-size: 12px;
+    }
+    .segment-header { display: flex; align-items: center; justify-content: space-between; }
+    .segment-name { font-weight: bold; color: #2c3e50; margin-bottom: 3px; }
+    .segment-stats { display: flex; gap: 10px; color: #7f8c8d; font-size: 11px; flex-wrap: wrap; }
+    .segment-link { color: #fc4c02; text-decoration: none; font-size: 11px; }
+    .segment-link:hover { text-decoration: underline; }
+    .strava-logo { color: #fc4c02; font-weight: bold; }
+
+    /* Cache badge */
+    #cacheBadge {
+      display: none;
+      align-items: center; gap: 8px;
+      font-size: 11px; color: #7f8c8d;
+    }
+    #cacheBadge .cache-info {
+      background: #f0faf4; border: 1px solid #27ae60; color: #27ae60;
+      padding: 3px 10px; border-radius: 12px; font-weight: bold;
+    }
+    #cacheRefreshBtn {
+      background: none; border: 1px solid #bdc3c7; color: #7f8c8d;
+      padding: 3px 10px; border-radius: 12px; cursor: pointer;
+      font-size: 11px; transition: all 0.15s;
+    }
+    #cacheRefreshBtn:hover { background: #ecf0f1; }
+
+    footer {
+      text-align: center; margin-top: 10px; color: #95a5a6; font-size: 12px;
+      padding: 12px; background: white; border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    @media (max-width: 768px) {
+      .title-container { flex-direction: column; }
+      h1 { font-size: 20px; }
+      #map { height: 320px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="title-container">
+  <h1>Castelli Romani - Percorsi</h1>
+  <div class="nav-links">
+    <a href="/dashboard-completa" class="nav-link">Meteo</a>
+    <a href="/avvisi" class="nav-link">Link Utili</a>
+  </div>
+</div>
+<div class="subtitle">Percorsi MTB &mdash; GPX, meteo e Strava</div>
+
+<div class="main-container">
+
+  <!-- LOADING OVERLAY -->
+  <div id="loadingOverlay" class="card" style="text-align:center; padding: 30px 20px;">
+    <div style="font-size: 20px; font-weight: bold; color: #2c3e50; margin-bottom: 20px;">
+      🔄 Inizializzazione dashboard percorsi...
+    </div>
+    <div id="loadingSteps" style="display:inline-block; text-align:left; font-size:14px; line-height:2;">
+      <div id="step1" style="color:#95a5a6;">🔍 Recupero segmenti starred Strava...</div>
+      <div id="step2" style="color:#95a5a6; display:none;">⭐ Trovati {{ starred_segments | length }} segmenti</div>
+      <div id="step3" style="color:#95a5a6; display:none;">🗺️ Inizializzazione mappa...</div>
+    </div>
+    <div id="loadingBar" style="margin-top:20px; background:#ecf0f1; border-radius:10px; height:8px; overflow:hidden;">
+      <div id="loadingProgress" style="height:100%; width:0%; background:linear-gradient(90deg,#667eea,#764ba2); border-radius:10px; transition: width 0.4s ease;"></div>
+    </div>
+  </div>
+
+  <!-- MAPPA (nascosta finché carica) -->
+  <div id="mainContent" style="display:none;">
+  <!-- MAPPA -->
+  <div class="card">
+    <div class="card-title">Mappa Percorsi</div>
+    <div id="map"></div>
+    <div class="map-footer">
+      <span id="mapStatus">Caricamento GPX...</span>
+      <div id="cacheBadge">
+        <span class="cache-info" id="cacheInfo"></span>
+        <button id="cacheRefreshBtn" onclick="forceRefresh()">↺ Aggiorna dati</button>
+      </div>
+      <button class="btn-osm" id="btnOSM" onclick="toggleOSM(this)">+ Carica sentieri OSM</button>
+    </div>
+    <!-- Legenda OSM — visibile solo dopo caricamento -->
+    <div id="osmLegend">
+      <div class="osm-legend-title">🗺️ Sentieri OpenStreetMap — clicca il pulsante per mostrare/nascondere</div>
+      <div class="osm-legend-items">
+        <div class="osm-legend-item">
+          <div class="osm-legend-line" style="background:#f39c12"></div>
+          <span class="osm-legend-label">MTB</span>
+        </div>
+        <div class="osm-legend-item">
+          <div class="osm-legend-line" style="background:#1abc9c"></div>
+          <span class="osm-legend-label">Hiking / Sentieri CAI</span>
+        </div>
+        <div class="osm-legend-item">
+          <div class="osm-legend-line thick" style="background:#c0392b"></div>
+          <span class="osm-legend-label">Via Francigena</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTA GPX -->
+  <div class="card">
+    <div class="card-title green">Percorsi GPX &mdash; clicca per isolare sulla mappa</div>
+    <div class="gpx-list" id="gpxList">
+      <p style="color:#95a5a6;font-size:12px;margin:0">Caricamento...</p>
+    </div>
+    <!-- Segmenti Strava starred cliccabili -->
+    <div style="margin-top:10px">
+      <div style="font-size:12px;font-weight:bold;color:#fc4c02;margin-bottom:6px">
+        &#9650; Strava &mdash; Segmenti Starred &mdash; clicca per visualizzare sulla mappa
+      </div>
+      <div class="seg-list" id="segList">
+        {% if starred_segments %}
+          {% for seg in starred_segments %}
+          <div class="seg-pill" id="seg-pill-{{ seg.id }}"
+               data-id="{{ seg.id }}"
+               data-name="{{ seg.name | replace("'", "&apos;") }}"
+               data-polyline="{{ seg.polyline }}"
+               data-start="{{ seg.start_latlng | tojson }}"
+               data-end="{{ seg.end_latlng | tojson }}"
+               onclick="activateSegment({{ seg.id }}, this)">
+            <div class="seg-pill-name">{{ seg.name }}</div>
+            <div class="seg-pill-row">
+              {{ seg.distance_km }} km &middot; {{ seg.avg_grade }}% &middot; {{ seg.elevation_gain }}m &middot; <span class="kom">KOM: {{ seg.kom }}</span>{% if seg.pr_time and seg.pr_time != 'N/A' %} &middot; <span class="pr">PR: {{ seg.pr_time }}</span>{% endif %} &middot; {{ "{:,}".format(seg.effort_count) }} tent.
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p style="color:#95a5a6;font-size:12px">Nessun segmento disponibile</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="hint-bar" id="hintBar">
+      Caricamento tracciati in corso...
+    </div>
+  </div>
+
+
+  <!-- METEO GPX -->
+  <p style="color:#2c3e50;font-size:15px;font-weight:bold;margin-bottom:2px">
+    📅 Miglioramento atteso &mdash; terreno + finestra meteo 72h per percorso
+  </p>
+  <p style="color:#95a5a6;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">
+    Terreno + finestra meteo — storico precipitazioni 5 giorni
+  </p>
+  <div class="forecast-grid">
+    {% for gpx in gpx_forecasts %}
+    <div class="forecast-card" style="border-left-color: {{ gpx.color }}">
+      <h4>{{ gpx.name }}</h4>
+      <div class="forecast-coords">
+        Meteo calcolato su centroide tracciato &mdash; {{ gpx.lat }}&deg;N {{ gpx.lon }}&deg;E
+      </div>
+      <div class="forecast-coords" style="margin-top:2px">
+        🪨 Zona riferimento: <strong>{{ gpx.zone_name }}</strong>
+        &nbsp;·&nbsp; SMI {{ gpx.smi }}
+      </div>
+      <span class="soil-badge {{ 'poor' if gpx.smi > 1.2 else ('medium' if gpx.smi > 0.8 else ('good' if gpx.smi > 0.5 else 'excellent')) }}">
+        {{ gpx.terrain_emoji }} Terreno {{ gpx.terrain_label }}
+      </span>
+      {% if gpx.soil_forecast %}
+      <div class="riding-windows">
+        {% for day in gpx.soil_forecast %}
+        <div class="day-window {{ day.rating }}">
+          <div class="day-window-header">
+            <span class="day-window-title">{{ day.icon }} {{ day.day }} — {{ day.label }}</span>
+            <span class="day-window-time">{% if day.window %}⏰ {{ day.window }}{% else %}—{% endif %}</span>
+          </div>
+          <div class="day-window-details">
+            {% if day.temp is not none %}{{ day.temp }}&deg;C &nbsp;&middot;&nbsp;{% endif %}
+            {% if day.wind is not none %}{{ day.wind }} km/h &nbsp;&middot;&nbsp;{% endif %}
+            💧 {{ day.precip }}mm
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="no-windows">Nessun dato disponibile</p>
+      {% endif %}
+    </div>
+    {% else %}
+    <p style="color:#95a5a6">Nessun dato meteo disponibile</p>
+    {% endfor %}
+  </div>
+
+  </div><!-- fine mainContent -->
+
+  <footer>
+    <strong>Tracciati:</strong> <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a>
+    &nbsp;&middot;&nbsp;
+    <strong>Meteo:</strong> <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a>
+    &nbsp;&middot;&nbsp;
+    <strong>Attivit&agrave;:</strong> <a href="https://www.strava.com" target="_blank">Strava</a>
+    &nbsp;&middot;&nbsp; Test App by <strong>G.Mollo</strong>
+  </footer>
+</div>
+
+<script>
+// ============================================================
+//  CONFIGURAZIONE GPX — iniettata server-side (coordinate inline)
+//  Elimina 5 richieste HTTP + parsing XML nel browser
+// ============================================================
+var GPX_FILES = [
+  {% for g in gpx_forecasts %}
+  { key: {{ g.key | tojson }}, file: {{ g.file | tojson }}, name: {{ g.name | tojson }}, color: {{ g.color | tojson }}, coords: {{ g.coords | tojson }} }{{ "," if not loop.last }}
+  {% endfor %}
+];
+
+// ============================================================
+//  STATO
+// ============================================================
+var loadedCount   = 0;
+var activeKey     = null;
+var activeLabel   = null;
+var osmLoaded     = false;
+var osmVisible    = false;  // OSM attualmente visibile sulla mappa
+
+var gpxData = {};
+GPX_FILES.forEach(function(g) { gpxData[g.key] = { info: g, polylines: [], bounds: null }; });
+
+var osmLayer = L.layerGroup();
+
+// ============================================================
+//  SETUP MAPPA
+// ============================================================
+var map = L.map('map').setView([41.745, 12.73], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  maxZoom: 18
+}).addTo(map);
+
+var gpxLayer = L.layerGroup().addTo(map);
+
+map.on('click', function() { deactivate(); deactivateSegment(); });
+
+// ============================================================
+//  HELPERS OSM VISIBILITY
+// ============================================================
+function _osmShow() {
+  if (osmLoaded && !osmVisible) {
+    // Sbiadisci GPX quando OSM è attivo
+    GPX_FILES.forEach(function(g) {
+      gpxData[g.key].polylines.forEach(function(pl) {
+        pl.setStyle({ opacity: 0.12, weight: 2 });
+      });
+    });
+    osmLayer.addTo(map);
+    osmVisible = true;
+    document.getElementById('osmLegend').style.display = 'block';
+    var btn = document.getElementById('btnOSM');
+    if (btn) btn.classList.add('active-osm');
+  }
+}
+
+function _osmHide() {
+  if (osmVisible) {
+    map.removeLayer(osmLayer);
+    osmVisible = false;
+    document.getElementById('osmLegend').style.display = 'none';
+    var btn = document.getElementById('btnOSM');
+    if (btn) btn.classList.remove('active-osm');
+    // Ripristina opacità GPX
+    GPX_FILES.forEach(function(g) {
+      gpxData[g.key].polylines.forEach(function(pl) {
+        pl.setStyle({ opacity: 0.85, weight: 4 });
+      });
+    });
+  }
+}
+
+// ============================================================
+//  GESTIONE ATTIVAZIONE / DISATTIVAZIONE GPX
+// ============================================================
+function activate(key) {
+  if (activeKey === key) { deactivate(); return; }
+  activeKey = key;
+
+  // Nascondi OSM quando si seleziona un percorso GPX
+  _osmHide();
+
+  if (activeLabel) { map.removeLayer(activeLabel); activeLabel = null; }
+
+  // Stile polyline: evidenzia solo il selezionato
+  GPX_FILES.forEach(function(g) {
+    var entry = gpxData[g.key];
+    entry.polylines.forEach(function(pl) {
+      pl.setStyle(g.key === key
+        ? { opacity: 1, weight: 5 }
+        : { opacity: 0.08, weight: 2 });
+    });
+    var pill = document.getElementById('pill-' + g.key);
+    if (!pill) return;
+    if (g.key === key) { pill.classList.add('active');  pill.classList.remove('dimmed'); }
+    else               { pill.classList.add('dimmed'); pill.classList.remove('active'); }
+  });
+
+  var entry = gpxData[key];
+  if (entry.bounds && entry.bounds.isValid()) {
+    map.fitBounds(entry.bounds, { padding: [40, 40], maxZoom: 14 });
+    activeLabel = L.tooltip({ permanent: true, direction: 'top', className: 'trail-label', offset: [0, 0] })
+      .setContent(entry.info.name).setLatLng(entry.bounds.getCenter()).addTo(map);
+  }
+  updateHint(key);
+}
+
+function deactivate() {
+  activeKey = null;
+  if (activeLabel) { map.removeLayer(activeLabel); activeLabel = null; }
+  GPX_FILES.forEach(function(g) {
+    gpxData[g.key].polylines.forEach(function(pl) {
+      pl.setStyle({ opacity: 0.85, weight: 4 });
+    });
+    var pill = document.getElementById('pill-' + g.key);
+    if (pill) pill.classList.remove('active', 'dimmed');
+  });
+  updateHint(null);
+}
+
+function updateHint(key) {
+  var bar = document.getElementById('hintBar');
+  if (!bar) return;
+  if (key) {
+    var name = gpxData[key] ? gpxData[key].info.name : key;
+    bar.innerHTML = 'Visualizzi: <strong>' + name + '</strong> &mdash; clicca di nuovo o sulla mappa per vedere tutti';
+  } else {
+    bar.textContent = 'Clicca un percorso per isolarlo sulla mappa';
+  }
+}
+
+// ============================================================
+//  CARICAMENTO GPX — usa coordinate inline (no HTTP fetch, no XML parsing)
+// ============================================================
+function loadGPXFiles() {
+  document.getElementById('mapStatus').textContent = 'Rendering ' + GPX_FILES.length + ' tracciati...';
+
+  GPX_FILES.forEach(function(gpxInfo) {
+    var coords = gpxInfo.coords;
+    if (!coords || coords.length < 2) {
+      loadedCount++;
+      onGPXLoaded();
+      return;
+    }
+
+    var pl = L.polyline(coords, {
+      color:     gpxInfo.color,
+      weight:    4,
+      opacity:   0.85,
+      dashArray: '10,5',
+      lineJoin:  'round',
+      lineCap:   'round'
+    });
+    pl.bindPopup('<b>' + gpxInfo.name + '</b><br><small style="color:#888">GPX locale</small>');
+    pl.addTo(gpxLayer);
+    gpxData[gpxInfo.key].polylines.push(pl);
+
+    try {
+      gpxData[gpxInfo.key].bounds = pl.getBounds();
+    } catch(e2) {}
+
+    loadedCount++;
+    onGPXLoaded();
+  });
+}
+
+function onGPXLoaded() {
+  var statusEl = document.getElementById('mapStatus');
+  if (loadedCount < GPX_FILES.length) {
+    statusEl.textContent = 'GPX caricati: ' + loadedCount + '/' + GPX_FILES.length + '...';
+    return;
+  }
+
+  // Tutti caricati
+  statusEl.textContent = GPX_FILES.length + ' tracciati caricati';
+  renderGPXList();
+  updateHint(null);
+}
+
+// ============================================================
+//  RENDER LISTA PILLS
+// ============================================================
+function renderGPXList() {
+  var container = document.getElementById('gpxList');
+  container.innerHTML = GPX_FILES.map(function(g) {
+    var hasData = gpxData[g.key].polylines.length > 0;
+    var hint    = hasData ? 'Clicca per isolare sulla mappa' : 'File non trovato';
+    var safeName = g.name.replace(/'/g, "\\'");
+    return '<div class="gpx-pill" id="pill-' + g.key + '" '
+         + (hasData ? 'onclick="activate(\'' + g.key + '\')"' : 'style="cursor:default;opacity:0.4"') + '>'
+         + '<div style="display:flex;align-items:center;gap:6px;width:100%">'
+         + '<div class="gpx-color-bar" style="background:' + g.color + ';width:100%;height:4px;border-radius:2px;flex:1"></div>'
+         + '<span class="gpx-pill-badge" style="background:' + g.color + '22;color:' + g.color + '">GPX</span>'
+         + '</div>'
+         + '<div class="gpx-pill-info">'
+         + '<div class="gpx-pill-name">' + g.name + '</div>'
+         + '<div class="gpx-pill-hint">' + hint + '</div>'
+         + '</div>'
+         + '</div>';
+  }).join('');
+}
+
+// ============================================================
+//  CACHE localStorage — segmenti Strava
+// ============================================================
+var CACHE_KEY    = 'percorsi_cache_v1';
+var CACHE_TTL_MS = 24 * 60 * 60 * 1000;  // 24 ore
+
+function saveToCache() {
+  try {
+    // Serializza tutti i seg-pill dal DOM
+    var pills = [];
+    document.querySelectorAll('.seg-pill').forEach(function(el) {
+      pills.push({
+        id:        el.getAttribute('data-id'),
+        name:      el.getAttribute('data-name'),
+        polyline:  el.getAttribute('data-polyline'),
+        start:     el.getAttribute('data-start'),
+        end:       el.getAttribute('data-end'),
+        html:      el.outerHTML
+      });
+    });
+    var payload = {
+      ts:    Date.now(),
+      pills: pills
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+    console.log('[cache] Salvati', pills.length, 'segmenti in localStorage');
+  } catch(e) {
+    console.warn('[cache] Errore salvataggio:', e);
+  }
+}
+
+function loadFromCache() {
+  try {
+    var raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    var data = JSON.parse(raw);
+    if (!data.ts || !data.pills) return null;
+    var age = Date.now() - data.ts;
+    if (age > CACHE_TTL_MS) { localStorage.removeItem(CACHE_KEY); return null; }
+    return data;
+  } catch(e) {
+    return null;
+  }
+}
+
+function showCacheBadge(ts) {
+  var badge = document.getElementById('cacheBadge');
+  if (!badge) return;
+  badge.style.display = 'flex';
+  var d = new Date(ts);
+  var fmt = d.toLocaleDateString('it-IT', { day:'numeric', month:'short' })
+          + ' ' + d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+  document.getElementById('cacheInfo').textContent = '📦 Cache ' + fmt;
+}
+
+function forceRefresh() {
+  localStorage.removeItem(CACHE_KEY);
+  window.location.reload();
+}
+
+function revealPage() {
+  document.getElementById('loadingOverlay').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+  if (typeof map !== 'undefined') {
+    setTimeout(function() { map.invalidateSize(); }, 100);
+  }
+}
+
+// ============================================================
+//  LOADING — usa cache se disponibile, altrimenti animazione
+// ============================================================
+(function() {
+  var cached = loadFromCache();
+
+  if (cached && cached.pills.length > 0) {
+    // ✅ CACHE HIT — mostra subito senza attendere
+    console.log('[cache] Hit! Età:', Math.round((Date.now() - cached.ts) / 60000), 'min');
+
+    // Inietta le pill dal cache nel DOM (sovrascrive quelle Jinja se ci sono)
+    var segList = document.getElementById('segList');
+    if (segList && cached.pills.length > 0) {
+      segList.innerHTML = cached.pills.map(function(p) { return p.html; }).join('');
+      // Re-attacca gli onclick (rimossi da innerHTML)
+      segList.querySelectorAll('.seg-pill').forEach(function(el) {
+        var id = parseInt(el.getAttribute('data-id'), 10);
+        el.onclick = function() { activateSegment(id, el); };
+      });
+    }
+
+    revealPage();
+    showCacheBadge(cached.ts);
+    return;
+  }
+
+  // ❌ CACHE MISS — mostra la pagina appena il DOM è pronto (nessun delay artificiale)
+  console.log('[cache] Miss — caricamento da server');
+  revealPage();
+  saveToCache();
+})();
+
+// ============================================================
+//  OSM — toggle (mostra/nascondi) + caricamento on-demand
+// ============================================================
+var S = 41.68, W = 12.63, N = 41.82, E = 12.82;
+
+function toggleOSM(btn) {
+  if (osmLoaded) {
+    // Già caricato: toggle visibilità
+    if (osmVisible) {
+      _osmHide();
+      btn.textContent = '+ Mostra sentieri OSM';
+    } else {
+      _osmShow();
+      btn.textContent = '👁 Nascondi sentieri OSM';
+    }
+    return;
+  }
+  // Prima volta: carica
+  loadOSM(btn);
+}
+
+async function loadOSM(btn) {
+  btn.disabled = true;
+  btn.textContent = 'Caricamento OSM...';
+  var statusEl = document.getElementById('mapStatus');
+
+  // Query Overpass — solo MTB + hiking, senza foot (più leggera)
+  var q = '[out:json][timeout:60];\n(\n'
+        + '  relation["route"="mtb"]["name"]('    + S + ',' + W + ',' + N + ',' + E + ');\n'
+        + '  relation["route"="hiking"]["name"](' + S + ',' + W + ',' + N + ',' + E + ');\n'
+        + ');\nout geom qt;';
+
+  var servers = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.openstreetmap.ru/api/interpreter'
+  ];
+
+  var resp = null;
+  for (var i = 0; i < servers.length; i++) {
+    try {
+      statusEl.textContent = 'OSM: tentativo ' + (i+1) + '/' + servers.length + '...';
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 25000); // 25s per server
+      var r = await fetch(servers[i], {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(q),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (r.ok) { resp = r; break; }
+      statusEl.textContent = 'OSM server ' + (i+1) + ' non disponibile (HTTP ' + r.status + ')';
+    } catch(e) {
+      if (e.name === 'AbortError') {
+        statusEl.textContent = 'OSM server ' + (i+1) + ' troppo lento, provo il prossimo...';
+      } else {
+        statusEl.textContent = 'OSM server ' + (i+1) + ' errore: ' + e.message;
+      }
+    }
+  }
+
+  if (!resp) {
+    statusEl.textContent = '❌ Sentieri OSM non disponibili al momento. Riprova tra poco.';
+    btn.disabled = false;
+    btn.textContent = '↺ Riprova sentieri OSM';
+    return;
+  }
+
+  try {
+    var OSM_COLORS = { hiking: '#1abc9c', mtb: '#f39c12', francigena: '#c0392b' };
+    var data = await resp.json();
+    var count = 0;
+
+    (data.elements || []).filter(function(e) { return e.type === 'relation'; }).forEach(function(rel) {
+      var tags = rel.tags || {};
+      var name = tags.name || tags.ref || ('OSM #' + rel.id);
+      var n    = name.toLowerCase();
+      var rf   = (tags.ref || '').toLowerCase();
+      var cat  = (n.indexOf('francigena') >= 0 || rf.indexOf('vf') >= 0) ? 'francigena'
+               : (tags.route === 'mtb' || n.indexOf('mtb') >= 0) ? 'mtb' : 'hiking';
+      var color  = OSM_COLORS[cat];
+      var drawn  = 0;
+
+      (rel.members || []).filter(function(m) {
+        return m.type === 'way' && m.geometry && m.geometry.length > 1;
+      }).forEach(function(m) {
+        var pl = L.polyline(m.geometry.map(function(p) { return [p.lat, p.lon]; }), {
+          color: color, weight: cat === 'francigena' ? 4 : 2,
+          opacity: 0.75, lineJoin: 'round', lineCap: 'round'
+        });
+        pl.bindPopup('<b>' + name + '</b><br><small style="color:#888">' + cat + ' — OpenStreetMap</small>');
+        pl.addTo(osmLayer);
+        drawn++;
+      });
+      if (drawn > 0) count++;
+    });
+
+    if (count === 0) {
+      statusEl.textContent = 'OSM: nessun sentiero trovato nell\'area.';
+      btn.disabled = false;
+      btn.textContent = '↺ Riprova sentieri OSM';
+      return;
+    }
+
+    osmLoaded = true;
+    _osmShow();
+    btn.textContent = '👁 Nascondi sentieri OSM';
+    btn.disabled = false;
+    statusEl.textContent = GPX_FILES.length + ' GPX + ' + count + ' sentieri OSM';
+  } catch(e) {
+    statusEl.textContent = '❌ Errore parsing dati OSM: ' + e.message;
+    btn.disabled = false;
+    btn.textContent = '↺ Riprova sentieri OSM';
+  }
+}
+
+// ============================================================
+//  SEGMENTI STRAVA
+// ============================================================
+
+// Decoder per Google Encoded Polyline (formato usato da Strava)
+function decodePolyline(encoded) {
+  var result = [], index = 0, len = encoded.length;
+  var lat = 0, lng = 0;
+  while (index < len) {
+    var b, shift = 0, result2 = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result2 |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    var dlat = (result2 & 1) ? ~(result2 >> 1) : (result2 >> 1); lat += dlat;
+    shift = 0; result2 = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result2 |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    var dlng = (result2 & 1) ? ~(result2 >> 1) : (result2 >> 1); lng += dlng;
+    result.push([lat / 1e5, lng / 1e5]);
+  }
+  return result;
+}
+
+var activeSegKey = null;
+var segLayer     = L.layerGroup().addTo(map);
+
+function activateSegment(id, el) {
+  // Toggle
+  if (activeSegKey === id) { deactivateSegment(); return; }
+  deactivateSegment();
+  activeSegKey = id;
+  // Leggi name dal data attribute — evita problemi con apostrofi nel nome
+  var name = el.getAttribute('data-name') || el.querySelector('.seg-pill-name').textContent || String(id);
+
+  // Nascondi OSM quando si seleziona un segmento Strava
+  _osmHide();
+
+  // Highlight pill
+  document.querySelectorAll('.seg-pill').forEach(function(p) { p.classList.add('dimmed'); });
+  el.classList.remove('dimmed');
+  el.classList.add('active');
+
+  var polylineStr = el.getAttribute('data-polyline');
+  var startRaw    = el.getAttribute('data-start');
+  var endRaw      = el.getAttribute('data-end');
+
+  segLayer.clearLayers();
+  if (activeLabel) { map.removeLayer(activeLabel); activeLabel = null; }
+
+  var placed = false;
+
+  // Prova 1: polyline encoded Strava
+  if (polylineStr && polylineStr.trim().length > 4) {
+    try {
+      var coords = decodePolyline(polylineStr.trim());
+      if (coords.length > 1) {
+        var pl = L.polyline(coords, {
+          color: '#fc4c02', weight: 5, opacity: 1, lineJoin: 'round', lineCap: 'round'
+        }).bindPopup('<b>' + name + '</b><br><small style="color:#fc4c02">Strava Segment</small>');
+        pl.addTo(segLayer);
+        var bounds = pl.getBounds();
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+          activeLabel = L.tooltip({ permanent: true, direction: 'top', className: 'trail-label', offset: [0, 0] })
+            .setContent(name).setLatLng(bounds.getCenter()).addTo(map);
+        }
+        placed = true;
+      }
+    } catch(e) { console.warn('Decode polyline error:', e); }
+  }
+
+  // Prova 2: linea retta start → end
+  if (!placed && startRaw && endRaw) {
+    try {
+      var start = JSON.parse(startRaw);
+      var end   = JSON.parse(endRaw);
+      if (Array.isArray(start) && start.length === 2 && Array.isArray(end) && end.length === 2) {
+        var pl = L.polyline([start, end], {
+          color: '#fc4c02', weight: 5, opacity: 1, dashArray: '8,4'
+        }).bindPopup('<b>' + name + '</b>').addTo(segLayer);
+        L.circleMarker(start, { radius: 7, color: '#27ae60', fillColor: '#27ae60', fillOpacity: 1 })
+          .bindPopup('Inizio: ' + name).addTo(segLayer);
+        L.circleMarker(end, { radius: 7, color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 1 })
+          .bindPopup('Fine: ' + name).addTo(segLayer);
+        map.fitBounds(pl.getBounds(), { padding: [60, 60], maxZoom: 15 });
+        placed = true;
+      }
+    } catch(e) { console.warn('Errore coordinate segmento:', e); }
+  }
+
+  var hintBar = document.getElementById('hintBar');
+  if (!placed) {
+    console.warn('Segmento senza geometria disponibile:', name, '| polyline:', polylineStr, '| start:', startRaw);
+    if (hintBar) hintBar.innerHTML = '⚠️ Geometria non disponibile per: <strong>' + name + '</strong> — dati Strava mancanti';
+  } else {
+    if (hintBar) hintBar.innerHTML = 'Segmento: <strong>' + name + '</strong> &mdash; clicca di nuovo o sulla mappa per deselezionare';
+  }
+}
+
+function deactivateSegment() {
+  activeSegKey = null;
+  segLayer.clearLayers();
+  document.querySelectorAll('.seg-pill').forEach(function(p) {
+    p.classList.remove('active', 'dimmed');
+  });
+  if (activeLabel) { map.removeLayer(activeLabel); activeLabel = null; }
+}
+
+// ============================================================
+//  AVVIO
+// ============================================================
+loadGPXFiles();
+
+    // ── Markers Segnalazioni Community ────────────────────────────────────────
+    const communityReports = {{ reports | tojson if reports else '[]' }};
+
+    const reportIcons = {
+      ok:     { emoji: '🟢', color: '#27ae60', label: 'Sentiero OK' },
+      muddy:  { emoji: '🟡', color: '#f7b733', label: 'Fangoso / Bagnato' },
+      closed: { emoji: '🔴', color: '#e74c3c', label: 'Chiuso / Bloccato' },
+      danger: { emoji: '⚠️', color: '#e67e22', label: 'Pericolo' },
+    };
+
+    communityReports.forEach(r => {
+      const info   = reportIcons[r.kind] || { emoji: '📍', color: '#95a5a6', label: r.kind };
+      const icon   = L.divIcon({
+        className: '',
+        html: `<div style="
+          font-size:22px; line-height:1;
+          filter: drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+          cursor: pointer;">${info.emoji}</div>`,
+        iconAnchor: [11, 11],
+      });
+
+      const date    = r.created_at ? r.created_at.slice(0,10) : '';
+      const expires = r.expires_at  ? r.expires_at.slice(0,10)  : '';
+      const desc    = r.description ? `<br><em style="color:#555">${r.description}</em>` : '';
+
+      L.marker([r.lat, r.lon], { icon })
+        .addTo(map)
+        .bindPopup(`
+          <div style="font-size:13px; min-width:160px">
+            <strong>${info.emoji} ${info.label}</strong>${desc}
+            <div style="font-size:11px; color:#95a5a6; margin-top:6px">
+              📅 ${date} · scade ${expires}
+            </div>
+          </div>
+        `);
+    });
+
+    if (communityReports.length > 0) {
+      console.log('✅ Caricati', communityReports.length, 'marker segnalazioni community');
+    }
+
+  </script>
+</body>
+</html>
