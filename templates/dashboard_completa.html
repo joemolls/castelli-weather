@@ -408,6 +408,66 @@
       }
     }
 
+    /* Matrix mobile */
+    .legend-col-th,
+    .legend-col-td { }
+
+    @media (max-width: 600px) {
+      .matrix-outer {
+        margin: 10px 8px 14px !important;
+      }
+      .matrix-table {
+        font-size: 11px !important;
+      }
+      /* Nascondi colonna legenda */
+      .legend-col-th,
+      .legend-col-td {
+        display: none !important;
+      }
+      /* Ridistribuisci larghezze: zona 28%, 3 giorni 24% ciascuno */
+      .zone-col-th  { width: 28% !important; }
+      .day-col-th   { width: 24% !important; }
+      /* Zona: font più piccolo */
+      .zone-name-cell {
+        font-size: 12px !important;
+        white-space: normal !important;
+      }
+      /* Celle giornate: rimuovi split sinistra/destra, tutto centrato */
+      .day-cell-inner {
+        flex-direction: column !important;
+        align-items: center !important;
+      }
+      .day-cell-left {
+        border-right: none !important;
+        padding: 4px 2px 2px !important;
+        width: 100% !important;
+      }
+      .day-cell-right {
+        padding: 0 2px 4px !important;
+        text-align: center !important;
+        width: 100% !important;
+      }
+      /* Legenda mobile: blocco visibile sotto la tabella */
+      .matrix-legend-mobile {
+        display: flex !important;
+      }
+    }
+    .matrix-legend-mobile {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      background: white;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-top: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      font-size: 11px;
+      color: #555;
+    }
+    .matrix-legend-mobile .leg-item {
+      display: flex; align-items: center; gap: 4px;
+    }
+
     /* Soil forecast — proiezione giornaliera */
     .soil-forecast {
       margin-top: 10px;
@@ -458,38 +518,36 @@
   
   <!-- Matrice Go/NoGo per zona -->
   {% if matrix %}
-  <div style="max-width:1000px;margin:15px auto 16px;overflow-x:auto;">
-    <table style="width:100%;border-collapse:collapse;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);font-size:11px;table-layout:fixed;">
+  <div class="matrix-outer" style="max-width:1000px;margin:15px auto 16px;overflow-x:auto;">
+    <table class="matrix-table" style="width:100%;border-collapse:collapse;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);font-size:11px;table-layout:fixed;">
       <thead>
         <tr>
-          <th style="padding:6px 10px;background:#2c3e50;color:white;text-align:left;border-right:1px solid #3d5168;width:20%">🌱 Zona</th>
-          <th style="padding:6px 8px;background:#2c3e50;color:white;text-align:center;border-right:1px solid #3d5168;width:19%">Oggi</th>
-          <th style="padding:6px 8px;background:#2c3e50;color:white;text-align:center;border-right:1px solid #3d5168;width:19%">Domani</th>
-          <th style="padding:6px 8px;background:#2c3e50;color:white;text-align:center;border-right:1px solid #3d5168;width:19%">Dopodomani</th>
-          <th style="padding:6px 8px;background:#2c3e50;color:rgba(255,255,255,0.7);text-align:left;width:23%">Legenda</th>
+          <th class="zone-col-th" style="padding:6px 10px;background:#2c3e50;color:white;text-align:left;border-right:1px solid #3d5168;width:20%">🌱 Zona</th>
+          <th class="day-col-th" style="padding:6px 8px;background:#2c3e50;color:white;text-align:center;border-right:1px solid #3d5168;width:19%">Oggi</th>
+          <th class="day-col-th" style="padding:6px 8px;background:#2c3e50;color:white;text-align:center;border-right:1px solid #3d5168;width:19%">Domani</th>
+          <th class="day-col-th" style="padding:6px 8px;background:#2c3e50;color:white;text-align:center;border-right:1px solid #3d5168;width:19%">Dopodomani</th>
+          <th class="legend-col-th" style="padding:6px 8px;background:#2c3e50;color:rgba(255,255,255,0.7);text-align:left;width:23%">Legenda</th>
         </tr>
       </thead>
       <tbody>
         {% for z in matrix %}
         <tr style="border-bottom:1px solid #ecf0f1;">
 
-          <!-- Zona: solo nome + stato attuale -->
+          <!-- Zona: solo nome -->
           <td style="padding:5px 10px;border-right:2px solid #ecf0f1;vertical-align:middle;">
-            <div style="font-weight:700;color:#2c3e50;font-size:14px;white-space:nowrap">{{ z.name }}</div>
+            <div class="zone-name-cell" style="font-weight:700;color:#2c3e50;font-size:14px;white-space:nowrap">{{ z.name }}</div>
           </td>
 
-          <!-- Oggi / Domani / Dopodomani: split sinistra/destra -->
+          <!-- Oggi / Domani / Dopodomani -->
           {% for day in z.days %}
           {% set bg = "rgba(39,174,96,0.05)" if day.status == "go" else ("rgba(231,76,60,0.05)" if day.status == "nogo" else ("rgba(247,183,51,0.07)" if day.label == "Attenzione" else "rgba(230,126,34,0.05)")) %}
           <td style="padding:0;border-right:1px solid #ecf0f1;background:{{ bg }};vertical-align:middle;">
-            <div style="display:flex;align-items:center;height:100%;">
-              <!-- Sinistra: emoji + label -->
-              <div style="flex:1;text-align:center;padding:5px 4px;border-right:1px dashed #ecf0f1;">
+            <div class="day-cell-inner" style="display:flex;align-items:center;height:100%;">
+              <div class="day-cell-left" style="flex:1;text-align:center;padding:5px 4px;border-right:1px dashed #ecf0f1;">
                 <div style="font-size:16px;line-height:1">{{ day.emoji }}</div>
                 <div style="font-size:10px;font-weight:800;color:{% if day.status == 'go' %}#27ae60{% elif day.status == 'nogo' %}#e74c3c{% elif day.label == 'Attenzione' %}#c9a227{% else %}#e67e22{% endif %}">{{ day.label }}</div>
               </div>
-              <!-- Destra: SMI + mm -->
-              <div style="flex:1;padding:5px 4px;font-size:9px;color:#7f8c8d;line-height:1.7;text-align:left;">
+              <div class="day-cell-right" style="flex:1;padding:5px 4px;font-size:9px;color:#7f8c8d;line-height:1.7;text-align:left;">
                 <div>SMI {{ day.smi }}</div>
                 <div style="{% if day.rain_f > 5 %}color:#e74c3c;font-weight:700{% endif %}">💧{{ day.rain_f }}mm</div>
               </div>
@@ -499,7 +557,7 @@
 
           <!-- Legenda (rowspan su tutte le righe) -->
           {% if loop.first %}
-          <td rowspan="{{ matrix | length }}" style="padding:8px 8px;vertical-align:middle;border-left:2px solid #ecf0f1;font-size:10px;color:#555;line-height:2;">
+          <td class="legend-col-td" rowspan="{{ matrix | length }}" style="padding:8px 8px;vertical-align:middle;border-left:2px solid #ecf0f1;font-size:10px;color:#555;line-height:2;">
             <div style="display:flex;align-items:baseline;gap:5px"><span>🟢</span><div><strong>Praticabile</strong><div style="font-size:9px;color:#95a5a6">terreno asciutto, nessun rischio</div></div></div>
             <div style="display:flex;align-items:baseline;gap:5px"><span>🟡</span><div><strong>Umido</strong><div style="font-size:9px;color:#95a5a6">possibili chiazze di fango, attenzione</div></div></div>
             <div style="display:flex;align-items:baseline;gap:5px"><span>🟠</span><div><strong>Fangoso</strong><div style="font-size:9px;color:#95a5a6">solchi, erosione superficiale</div></div></div>
@@ -515,6 +573,18 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  <!-- Legenda mobile (visibile solo su schermi piccoli) -->
+  <div class="matrix-legend-mobile" style="max-width:1000px;margin:0 8px 16px;">
+    <div class="leg-item">🟢 <strong>Praticabile</strong> — asciutto</div>
+    <div class="leg-item">🟡 <strong>Umido</strong> — chiazze di fango</div>
+    <div class="leg-item">🟠 <strong>Fangoso</strong> — solchi, erosione</div>
+    <div class="leg-item">🔴 <strong>Saturo</strong> — danni ai sentieri</div>
+    <div style="width:100%;color:#bdc3c7;font-size:10px;margin-top:2px">
+      SMI = Soil Moisture Index · mm = pioggia prevista ·
+      <a href="/terreno" style="color:#3498db">dettaglio zone</a> · <a href="/metodologia" style="color:#3498db">metodologia</a>
+    </div>
   </div>
   {% endif %}
 
