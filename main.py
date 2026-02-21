@@ -8,6 +8,7 @@ from scraper import get_all_alerts
 from strava_client import fetch_starred_segments
 from counter import increment_visit
 from reports import save_report, get_active_reports, delete_report
+from cache import cached_fetch_weather, cached_fetch_weather_history, cached_fetch_starred_segments, invalidate_strava_cache, get_cache_status
 from datetime import datetime, timedelta
 import csv
 import httpx
@@ -446,7 +447,7 @@ async def calculate_zone_matrix_5d(hourly_forecast: dict) -> list:
     matrix = []
     for zone_key, geo in ZONE_GEOLOGY.items():
         try:
-            history = await fetch_weather_history(geo["lat"], geo["lon"], days=5)
+            history = await cached_fetch_weather_history(geo["lat"], geo["lon"], 5, fetch_weather_history)
             soil    = calculate_soil_dryness_5d(history)
         except Exception:
             soil = None
@@ -814,7 +815,7 @@ async def calculate_zone_matrix(hourly_forecast: dict) -> list:
     matrix = []
     for zone_key, geo in ZONE_GEOLOGY.items():
         try:
-            history = await fetch_weather_history(geo["lat"], geo["lon"], days=7)
+            history = await cached_fetch_weather_history(geo["lat"], geo["lon"], 7, fetch_weather_history)
             soil    = calculate_soil_dryness(history)
         except Exception:
             soil = None
@@ -893,7 +894,7 @@ async def get_weather(location: str):
     if location not in LOCATIONS:
         raise HTTPException(status_code=404, detail="Location not found")
     loc  = LOCATIONS[location]
-    data = await fetch_weather(loc["lat"], loc["lon"])
+    data = await cached_fetch_weather(loc["lat"], loc["lon"], fetch_weather)
     return {"location": loc["name"], "elevation": loc["elevation"], "hourly": data["hourly"]}
 
 @app.get("/dashboard/{location}", response_class=HTMLResponse)
@@ -901,7 +902,7 @@ async def dashboard(request: Request, location: str):
     if location not in LOCATIONS:
         raise HTTPException(status_code=404, detail="Location not found")
     loc    = LOCATIONS[location]
-    data   = await fetch_weather(loc["lat"], loc["lon"])
+    data   = await cached_fetch_weather(loc["lat"], loc["lon"], fetch_weather)
     hourly = data["hourly"]
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
@@ -909,45 +910,69 @@ async def dashboard(request: Request, location: str):
         "hourly": {k: hourly.get(k, []) for k in ["time","temperature_2m","precipitation","weather_code","windspeed_10m","windgusts_10m"]},
     })
 
+async def _fetch_all_locations():
+    """
+    Fetch meteo forecast + storico per tutte le LOCATIONS in parallelo.
+    Restituisce (all_data, soil_dryness_first).
+    """
+    import asyncio
+    loc_items = list(LOCATIONS.items())
+
+    # Fetch forecast e history in parallelo per tutte le zone
+    forecast_tasks = [cached_fetch_weather(li["lat"], li["lon"], fetch_weather)      for _, li in loc_items]
+    history_tasks  = [cached_fetch_weather_history(li["lat"], li["lon"], 5, fetch_weather_history) for _, li in loc_items]
+
+    forecasts, histories = await asyncio.gather(
+        asyncio.gather(*forecast_tasks,  return_exceptions=True),
+        asyncio.gather(*history_tasks,   return_exceptions=True),
+    )
+
+    all_data     = []
+    soil_dryness = None
+
+    for (loc_key, loc_info), forecast, history in zip(loc_items, forecasts, histories):
+        if isinstance(forecast, Exception):
+            print(f"⚠️ Forecast non disponibile per {loc_info['name']}: {forecast}")
+            continue
+        hourly = forecast["hourly"]
+
+        loc_soil = None
+        if not isinstance(history, Exception):
+            try:
+                loc_soil = calculate_soil_dryness_5d(history)
+                if soil_dryness is None:
+                    soil_dryness = loc_soil
+            except Exception as e:
+                print(f"⚠️ Storico non calcolabile per {loc_info['name']}: {e}")
+        else:
+            print(f"⚠️ Storico non disponibile per {loc_info['name']}: {history}")
+
+        all_data.append({
+            "name":        loc_info["name"],
+            "elevation":   loc_info["elevation"],
+            "hourly":      {k: hourly.get(k, []) for k in ["time","temperature_2m","precipitation","weather_code","windspeed_10m","windgusts_10m"]},
+            "soil_dryness": loc_soil,
+        })
+
+    return all_data, soil_dryness
+
+
 @app.get("/dashboard-completa", response_class=HTMLResponse)
 async def dashboard_completa(request: Request):
     visit_stats = increment_visit(page="dashboard")
-    all_data    = []
-    overall_trail_conditions = None
-    overall_riding_windows   = None
 
-    soil_dryness = None
+    all_data, soil_dryness = await _fetch_all_locations()
 
-    for loc_key, loc_info in LOCATIONS.items():
-        data   = await fetch_weather(loc_info["lat"], loc_info["lon"])
-        hourly = data["hourly"]
-        if overall_trail_conditions is None:
-            overall_trail_conditions = calculate_trail_conditions(hourly)
-            overall_riding_windows   = find_best_riding_windows(hourly)
-
-        loc_soil_dryness = None
-        try:
-            history = await fetch_weather_history(loc_info["lat"], loc_info["lon"], days=5)
-            loc_soil_dryness = calculate_soil_dryness_5d(history)
-            if soil_dryness is None:
-                soil_dryness = loc_soil_dryness
-                overall_riding_windows = adjust_windows_for_soil(overall_riding_windows, soil_dryness, hourly)
-        except Exception as e:
-            print(f"⚠️ Storico meteo non disponibile per {loc_info['name']}: {e}")
-
-        all_data.append({
-            "name": loc_info["name"], "elevation": loc_info["elevation"],
-            "hourly": {k: hourly.get(k, []) for k in ["time","temperature_2m","precipitation","weather_code","windspeed_10m","windgusts_10m"]},
-            "soil_dryness": loc_soil_dryness,
-        })
+    first_hourly             = all_data[0]["hourly"] if all_data else {}
+    overall_trail_conditions = calculate_trail_conditions(first_hourly)
+    overall_riding_windows   = find_best_riding_windows(first_hourly)
+    overall_riding_windows   = adjust_windows_for_soil(overall_riding_windows, soil_dryness, first_hourly)
 
     current_conditions = calculate_current_conditions(soil_dryness)
-    soil_forecast      = project_soil_forecast(soil_dryness,
-                             all_data[0]["hourly"] if all_data else None,
-                             overall_riding_windows)
+    soil_forecast      = project_soil_forecast(soil_dryness, first_hourly, overall_riding_windows)
 
     try:
-        matrix = await calculate_zone_matrix_5d(all_data[0]["hourly"] if all_data else {})
+        matrix = await calculate_zone_matrix_5d(first_hourly)
     except Exception as e:
         print(f"⚠️ Matrice terreno non disponibile: {e}")
         matrix = []
@@ -973,7 +998,7 @@ async def home_test(request: Request):
     soil_dryness = None
 
     for loc_key, loc_info in LOCATIONS.items():
-        data   = await fetch_weather(loc_info["lat"], loc_info["lon"])
+        data   = await cached_fetch_weather(loc_info["lat"], loc_info["lon"], fetch_weather)
         hourly = data["hourly"]
         if overall_trail_conditions is None:
             overall_trail_conditions = calculate_trail_conditions(hourly)
@@ -981,7 +1006,7 @@ async def home_test(request: Request):
 
         loc_soil_dryness = None
         try:
-            history = await fetch_weather_history(loc_info["lat"], loc_info["lon"], days=5)
+            history = await cached_fetch_weather_history(loc_info["lat"], loc_info["lon"], 5, fetch_weather_history)
             loc_soil_dryness = calculate_soil_dryness_5d(history)
             if soil_dryness is None:
                 soil_dryness = loc_soil_dryness
@@ -1032,7 +1057,7 @@ async def terreno(request: Request):
     """Pagina principale: matrice Go/NoGo per zona."""
     # Prendi hourly forecast dalla prima location per le precipitazioni previste
     first_loc = list(LOCATIONS.values())[0]
-    data    = await fetch_weather(first_loc["lat"], first_loc["lon"])
+    data    = await cached_fetch_weather(first_loc["lat"], first_loc["lon"], fetch_weather)
     hourly  = data["hourly"]
     matrix  = await calculate_zone_matrix(hourly)
     reports = get_active_reports()
@@ -1095,6 +1120,67 @@ async def admin_elimina(report_id: str, pwd: str = ""):
     ok = delete_report(report_id)
     return {"ok": ok}
 
+
+@app.get("/admin/cache", response_class=HTMLResponse)
+async def admin_cache(request: Request, pwd: str = ""):
+    """Pagina admin per monitorare e invalidare la cache Redis."""
+    if pwd != ADMIN_PASSWORD:
+        return HTMLResponse("<p>Non autorizzato</p>", status_code=401)
+    status = get_cache_status()
+    keys_html = ""
+    for k in status.get("keys", []):
+        ttl = k["ttl_seconds"]
+        mins = ttl // 60 if ttl > 0 else 0
+        color = "#27ae60" if ttl > 600 else ("#f7b733" if ttl > 0 else "#e74c3c")
+        keys_html += f"""<tr>
+          <td style="font-family:monospace;font-size:12px">{k['key']}</td>
+          <td style="color:{color};font-weight:bold">{mins}m {ttl % 60}s</td>
+        </tr>"""
+    return HTMLResponse(f"""<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Admin — Cache</title>
+    <style>body{{font-family:Arial,sans-serif;padding:20px;background:#f0f2f5}}
+    h2{{color:#2c3e50}} table{{background:white;border-radius:8px;padding:16px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.08);border-collapse:collapse;width:100%}}
+    th{{background:#2c3e50;color:white;padding:8px 12px;text-align:left}}
+    td{{padding:8px 12px;border-bottom:1px solid #ecf0f1}}
+    .btn{{display:inline-block;margin:8px 4px;padding:8px 16px;border-radius:6px;
+    background:#e74c3c;color:white;text-decoration:none;font-size:13px}}</style>
+    </head><body>
+    <h2>🗄️ Cache Redis — stato attuale</h2>
+    <p style="color:#7f8c8d;font-size:13px">Aggiornato: {status['timestamp']}</p>
+    <table><thead><tr><th>Chiave</th><th>TTL residuo</th></tr></thead>
+    <tbody>{keys_html}</tbody></table>
+    <br>
+    <a class="btn" href="/admin/cache/invalidate?pwd={pwd}&target=weather">🌐 Invalida cache meteo</a>
+    <a class="btn" href="/admin/cache/invalidate?pwd={pwd}&target=strava">⭐ Invalida cache Strava</a>
+    <a class="btn" href="/admin/cache/invalidate?pwd={pwd}&target=all" style="background:#c0392b">🗑️ Invalida tutto</a>
+    <br><br><a href="/admin/segnalazioni?pwd={pwd}" style="color:#3498db">← Torna alle segnalazioni</a>
+    </body></html>""")
+
+
+@app.get("/admin/cache/invalidate")
+async def admin_cache_invalidate(pwd: str = "", target: str = "all"):
+    """Invalida manualmente la cache Redis."""
+    if pwd != ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="Non autorizzato")
+    import httpx as _httpx
+    from cache import UPSTASH_URL, _headers
+    deleted = []
+    if target in ("weather", "all"):
+        try:
+            r = _httpx.get(f"{UPSTASH_URL}/keys/wx:*", headers=_headers(), timeout=5.0)
+            keys = r.json().get("result", [])
+            for k in keys:
+                _httpx.get(f"{UPSTASH_URL}/del/{k}", headers=_headers(), timeout=3.0)
+                deleted.append(k)
+        except Exception as e:
+            print(f"⚠️ Errore invalidazione cache meteo: {e}")
+    if target in ("strava", "all"):
+        from cache import invalidate_strava_cache
+        invalidate_strava_cache()
+        deleted.append("strava:starred_segments")
+    return {"ok": True, "invalidated": deleted}
+
 @app.post("/segnala")
 async def segnala(request: Request):
     """Salva una segnalazione con posizione GPS su Upstash Redis."""
@@ -1135,26 +1221,36 @@ async def percorsi(request: Request):
     ref_loc     = list(LOCATIONS.values())[0]
     percorsi_soil_dryness = None
     try:
-        history = await fetch_weather_history(ref_loc["lat"], ref_loc["lon"], days=7)
-        percorsi_soil_dryness = calculate_soil_dryness(history)
+        history = await cached_fetch_weather_history(ref_loc["lat"], ref_loc["lon"], 5, fetch_weather_history)
+        percorsi_soil_dryness = calculate_soil_dryness_5d(history)
     except Exception as e:
         print(f"⚠️ Storico meteo non disponibile per percorsi: {e}")
 
     percorsi_current_conditions = calculate_current_conditions(percorsi_soil_dryness)
 
-    gpx_forecasts = []
+    # Calcola coordinate centroide per ogni GPX
+    gpx_with_coords = []
     for gpx in GPX_FILES:
         lat, lon = get_gpx_centroid(gpx["file"])
         if lat is None:
-            # Fallback: centro area Castelli Romani
             lat, lon = 41.745, 12.720
+        gpx_with_coords.append({**gpx, "lat": lat, "lon": lon})
 
-        weather        = await fetch_weather(lat, lon)
+    # Fetch meteo per tutti i GPX in PARALLELO (invece che in serie)
+    import asyncio
+    weather_results = await asyncio.gather(*[
+        cached_fetch_weather(g["lat"], g["lon"], fetch_weather)
+        for g in gpx_with_coords
+    ], return_exceptions=True)
+
+    gpx_forecasts = []
+    for gpx, weather in zip(gpx_with_coords, weather_results):
+        if isinstance(weather, Exception):
+            print(f"⚠️ Meteo non disponibile per {gpx['name']}: {weather}")
+            continue
         hourly         = weather["hourly"]
         conditions     = calculate_trail_conditions(hourly)
         riding_windows = find_best_riding_windows(hourly)
-
-        # Aggiusta finestre in base allo stato del terreno
         riding_windows = adjust_windows_for_soil(riding_windows, percorsi_soil_dryness, hourly)
         soil_forecast  = project_soil_forecast(percorsi_soil_dryness, hourly, riding_windows)
 
@@ -1163,8 +1259,8 @@ async def percorsi(request: Request):
             "name":           gpx["name"],
             "color":          gpx["color"],
             "file":           gpx["file"],
-            "lat":            lat,
-            "lon":            lon,
+            "lat":            gpx["lat"],
+            "lon":            gpx["lon"],
             "conditions":     conditions,
             "riding_windows": riding_windows,
             "soil_forecast":  soil_forecast,
@@ -1172,7 +1268,7 @@ async def percorsi(request: Request):
 
     #strava_club_info      = await fetch_club_info()
     #strava_all_activities = await fetch_all_club_activities()
-    starred_segments      = await fetch_starred_segments()
+    starred_segments      = await cached_fetch_starred_segments(fetch_starred_segments)
 
     reports = get_active_reports()
     return templates.TemplateResponse("percorsi.html", {
