@@ -340,8 +340,11 @@
 
 
   <!-- METEO GPX -->
-  <p style="color:#2c3e50;font-size:15px;font-weight:bold;margin-bottom:10px">
+  <p style="color:#2c3e50;font-size:15px;font-weight:bold;margin-bottom:2px">
     📅 Miglioramento atteso &mdash; terreno + finestra meteo 72h per percorso
+  </p>
+  <p style="color:#95a5a6;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">
+    Terreno + finestra meteo — storico precipitazioni 5 giorni
   </p>
   <div class="forecast-grid">
     {% for gpx in gpx_forecasts %}
@@ -350,11 +353,13 @@
       <div class="forecast-coords">
         Meteo calcolato su centroide tracciato &mdash; {{ gpx.lat }}&deg;N {{ gpx.lon }}&deg;E
       </div>
-      {% if current_conditions %}
-      <span class="soil-badge {{ current_conditions.rating }}">
-        {{ current_conditions.rating_emoji }} Terreno {{ current_conditions.rating_text }}
+      <div class="forecast-coords" style="margin-top:2px">
+        🪨 Zona riferimento: <strong>{{ gpx.zone_name }}</strong>
+        &nbsp;·&nbsp; SMI {{ gpx.smi }}
+      </div>
+      <span class="soil-badge {{ 'poor' if gpx.smi > 1.2 else ('medium' if gpx.smi > 0.8 else ('good' if gpx.smi > 0.5 else 'excellent')) }}">
+        {{ gpx.terrain_emoji }} Terreno {{ gpx.terrain_label }}
       </span>
-      {% endif %}
       {% if gpx.soil_forecast %}
       <div class="riding-windows">
         {% for day in gpx.soil_forecast %}

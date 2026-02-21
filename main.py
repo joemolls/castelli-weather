@@ -139,7 +139,7 @@ def calculate_current_conditions(soil_dryness):
 
     if rating_soil == "saturated":
         score = 20
-        reasons.append(f"❌ Terreno saturo ({rain_7d:.0f}mm negli ultimi 7 giorni)")
+        reasons.append(f"❌ Terreno saturo ({rain_7d:.0f}mm negli ultimi 5 giorni)")
         reasons.append(f"❌ Sentieri danneggiati — evita di uscire")
         if dry_days == 0:
             reasons.append("⚠️ Pioggia ancora recente")
@@ -147,17 +147,17 @@ def calculate_current_conditions(soil_dryness):
             reasons.append(f"⏳ {dry_days} giorn{'o' if dry_days==1 else 'i'} senza pioggia — troppo poco")
     elif rating_soil == "wet":
         score = 45
-        reasons.append(f"⚠️ Terreno bagnato ({rain_7d:.0f}mm negli ultimi 7 giorni)")
+        reasons.append(f"⚠️ Terreno bagnato ({rain_7d:.0f}mm negli ultimi 5 giorni)")
         reasons.append(f"⚠️ Sentieri scivolosi — massima attenzione")
         reasons.append(f"⏳ {dry_days} giorn{'o' if dry_days==1 else 'i'} senza pioggia")
     elif rating_soil == "damp":
         score = 70
-        reasons.append(f"🟡 Terreno umido ({rain_7d:.0f}mm negli ultimi 7 giorni)")
+        reasons.append(f"🟡 Terreno umido ({rain_7d:.0f}mm negli ultimi 5 giorni)")
         reasons.append(f"✅ Sentieri percorribili con attenzione")
         reasons.append(f"☀️ {dry_days} giorn{'o' if dry_days==1 else 'i'} senza pioggia")
     else:  # dry
         score = 95
-        reasons.append(f"✅ Terreno asciutto ({rain_7d:.0f}mm negli ultimi 7 giorni)")
+        reasons.append(f"✅ Terreno asciutto ({rain_7d:.0f}mm negli ultimi 5 giorni)")
         reasons.append(f"✅ Sentieri in ottime condizioni")
         reasons.append(f"☀️ {dry_days} giorn{'o' if dry_days==1 else 'i'} senza pioggia")
 
@@ -748,6 +748,98 @@ ZONE_GEOLOGY = {
 }
 
 
+
+def nearest_zone(lat: float, lon: float) -> dict:
+    """
+    Restituisce il dizionario ZONE_GEOLOGY più vicino alle coordinate date.
+    Distanza euclidea semplice (sufficiente per zone ravvicinate come i Castelli).
+    """
+    best_key, best_dist = None, float("inf")
+    for key, geo in ZONE_GEOLOGY.items():
+        dist = (lat - geo["lat"]) ** 2 + (lon - geo["lon"]) ** 2
+        if dist < best_dist:
+            best_dist, best_key = dist, key
+    return ZONE_GEOLOGY[best_key]
+
+
+def project_soil_forecast_smi(rain_5d: float, zone: dict, hourly_data: dict, riding_windows: list) -> list:
+    """
+    Proiezione 3 giorni usando SMI + gonogo() con parametri geologici della zona.
+    Allineato alla logica della matrice Go/NoGo — nessuna soglia flat.
+
+    Per ogni giorno:
+      - SMI proiettato: diminuisce di drainage_rate*0.15 per ogni giorno <2mm
+      - gonogo() decide il label in base a SMI proiettato + pioggia prevista
+    """
+    from datetime import datetime, timedelta
+
+    field_capacity = zone["field_capacity"]
+    drainage_rate  = zone["drainage_rate"]
+
+    # Precipitazioni previste per giorno
+    daily_precip = {}
+    for i, time_str in enumerate(hourly_data.get("time", [])):
+        try:
+            dt  = datetime.fromisoformat(time_str)
+            day = dt.date()
+            p   = hourly_data["precipitation"][i] if i < len(hourly_data.get("precipitation", [])) else 0
+            daily_precip[day] = daily_precip.get(day, 0) + (p or 0)
+        except Exception:
+            continue
+
+    # Mappa finestre per data
+    windows_by_day = {}
+    for w in (riding_windows or []):
+        try:
+            d = datetime.strptime(w["date"], "%d %b").replace(year=datetime.now().year).date()
+            windows_by_day[d] = w
+        except Exception:
+            pass
+
+    smi_now = calculate_smi(rain_5d, field_capacity)
+    now     = datetime.now()
+    forecast = []
+
+    for offset in range(3):
+        day = (now + timedelta(days=offset)).date()
+
+        # Proietta SMI applicando recupero/peggioramento dei giorni precedenti
+        smi_proj = smi_now
+        for d in range(offset):
+            prev_day  = (now + timedelta(days=d)).date()
+            prev_rain = daily_precip.get(prev_day, 0)
+            if prev_rain < 2:
+                smi_proj = max(0, smi_proj - drainage_rate * 0.15)
+            elif prev_rain > 10:
+                smi_proj = min(2.0, smi_proj + 0.2)
+
+        rain_f = round(daily_precip.get(day, 0), 1)
+        gng    = gonogo(smi_proj, rain_f, 0)
+
+        if offset == 0:   day_name = "Oggi"
+        elif offset == 1: day_name = "Domani"
+        else:
+            giorni = {"Mon":"Lun","Tue":"Mar","Wed":"Mer","Thu":"Gio","Fri":"Ven","Sat":"Sab","Sun":"Dom"}
+            day_name = day.strftime("%a %d %b")
+            for en, it in giorni.items():
+                day_name = day_name.replace(en, it)
+
+        window = windows_by_day.get(day)
+        forecast.append({
+            "day":    day_name,
+            "date":   day.strftime("%d %b"),
+            "rating": "poor" if gng["status"] == "nogo" else ("good" if gng["status"] == "caution" else "excellent"),
+            "icon":   gng["emoji"],
+            "label":  gng["label"],
+            "smi":    round(smi_proj, 2),
+            "precip": rain_f,
+            "window": (f"{window['start_time']}-{window['end_time']} ({window['duration']}h)") if window else None,
+            "temp":   round(window["temp"]) if window and window.get("temp") is not None else None,
+            "wind":   round(window["wind"]) if window and window.get("wind") is not None else None,
+        })
+
+    return forecast
+
 def calculate_smi(rain_7d: float, field_capacity: float) -> float:
     """Soil Moisture Index: rapporto pioggia/capacità di campo. >1 = saturo."""
     if field_capacity <= 0:
@@ -1217,42 +1309,59 @@ async def percorsi(request: Request):
     """Mappa percorsi GPX con meteo calcolato dal centroide del tracciato + dati Strava"""
     increment_visit(page="percorsi")
 
-    # Fetch soil_dryness una volta sola (Monte Cavo come riferimento)
-    ref_loc     = list(LOCATIONS.values())[0]
-    percorsi_soil_dryness = None
-    try:
-        history = await cached_fetch_weather_history(ref_loc["lat"], ref_loc["lon"], 5, fetch_weather_history)
-        percorsi_soil_dryness = calculate_soil_dryness_5d(history)
-    except Exception as e:
-        print(f"⚠️ Storico meteo non disponibile per percorsi: {e}")
-
-    percorsi_current_conditions = calculate_current_conditions(percorsi_soil_dryness)
-
-    # Calcola coordinate centroide per ogni GPX
+    # Calcola coordinate centroide per ogni GPX + zona geologica più vicina
     gpx_with_coords = []
     for gpx in GPX_FILES:
         lat, lon = get_gpx_centroid(gpx["file"])
         if lat is None:
             lat, lon = 41.745, 12.720
-        gpx_with_coords.append({**gpx, "lat": lat, "lon": lon})
+        zone = nearest_zone(lat, lon)
+        gpx_with_coords.append({**gpx, "lat": lat, "lon": lon, "zone": zone})
 
-    # Fetch meteo per tutti i GPX in PARALLELO (invece che in serie)
+    # Fetch meteo + storico per ogni GPX in PARALLELO
     import asyncio
     weather_results = await asyncio.gather(*[
         cached_fetch_weather(g["lat"], g["lon"], fetch_weather)
         for g in gpx_with_coords
     ], return_exceptions=True)
 
+    history_results = await asyncio.gather(*[
+        cached_fetch_weather_history(g["zone"]["lat"], g["zone"]["lon"], 5, fetch_weather_history)
+        for g in gpx_with_coords
+    ], return_exceptions=True)
+
     gpx_forecasts = []
-    for gpx, weather in zip(gpx_with_coords, weather_results):
+    for gpx, weather, history in zip(gpx_with_coords, weather_results, history_results):
         if isinstance(weather, Exception):
             print(f"⚠️ Meteo non disponibile per {gpx['name']}: {weather}")
             continue
-        hourly         = weather["hourly"]
+
+        zone = gpx["zone"]
+        hourly = weather["hourly"]
+
+        # Soil dryness dalla zona geologica più vicina (non più da Monte Cavo fisso)
+        gpx_soil_dryness = None
+        if not isinstance(history, Exception):
+            try:
+                gpx_soil_dryness = calculate_soil_dryness_5d(history)
+            except Exception as e:
+                print(f"⚠️ Storico non calcolabile per {gpx['name']}: {e}")
+
+        rain_5d = gpx_soil_dryness["rain_7d"] if gpx_soil_dryness else 0
+
         conditions     = calculate_trail_conditions(hourly)
         riding_windows = find_best_riding_windows(hourly)
-        riding_windows = adjust_windows_for_soil(riding_windows, percorsi_soil_dryness, hourly)
-        soil_forecast  = project_soil_forecast(percorsi_soil_dryness, hourly, riding_windows)
+        riding_windows = adjust_windows_for_soil(riding_windows, gpx_soil_dryness, hourly)
+
+        # Proiezione SMI con geologia della zona più vicina — allineato alla matrice
+        soil_forecast = project_soil_forecast_smi(rain_5d, zone, hourly, riding_windows)
+
+        # Badge terreno attuale basato su SMI (non più su soglie flat)
+        smi_now = calculate_smi(rain_5d, zone["field_capacity"])
+        if smi_now > 1.2:    terrain_label, terrain_emoji = "Saturo",      "🔴"
+        elif smi_now > 0.8:  terrain_label, terrain_emoji = "Fangoso",     "🟠"
+        elif smi_now > 0.5:  terrain_label, terrain_emoji = "Umido",       "🟡"
+        else:                terrain_label, terrain_emoji = "Praticabile", "🟢"
 
         gpx_forecasts.append({
             "key":            gpx["key"],
@@ -1261,10 +1370,25 @@ async def percorsi(request: Request):
             "file":           gpx["file"],
             "lat":            gpx["lat"],
             "lon":            gpx["lon"],
+            "zone_name":      zone["name"],
+            "smi":            round(smi_now, 2),
+            "terrain_label":  terrain_label,
+            "terrain_emoji":  terrain_emoji,
             "conditions":     conditions,
             "riding_windows": riding_windows,
             "soil_forecast":  soil_forecast,
         })
+
+    # current_conditions generale (prima zona come riferimento — solo per compatibilità template)
+    percorsi_current_conditions = None
+    if gpx_forecasts:
+        first = gpx_forecasts[0]
+        percorsi_current_conditions = {
+            "rating":       "poor" if first["smi"] > 1.2 else ("good" if first["smi"] > 0.5 else "excellent"),
+            "rating_text":  first["terrain_label"],
+            "rating_emoji": first["terrain_emoji"],
+            "reasons":      [],
+        }
 
     #strava_club_info      = await fetch_club_info()
     #strava_all_activities = await fetch_all_club_activities()
@@ -1275,7 +1399,7 @@ async def percorsi(request: Request):
         "request":                   request,
         "gpx_forecasts":             gpx_forecasts,
         "current_conditions":        percorsi_current_conditions,
-        "soil_dryness":              percorsi_soil_dryness,
+        "soil_dryness":              gpx_forecasts[0].get("smi") if gpx_forecasts else None,
         #"strava_club_info":         strava_club_info,
         #"strava_all_activities":    strava_all_activities,
         "starred_segments":          starred_segments,
