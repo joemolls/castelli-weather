@@ -412,6 +412,33 @@
       <div class="gps-status" id="gpsStatus">
         <div class="gps-dot acquiring" id="gpsDot"></div>
         <span id="gpsText">Rilevamento posizione in corso...</span>
+        <button id="gpsRetry" onclick="tryGPS()" 
+          style="display:none;margin-left:8px;padding:3px 10px;border-radius:10px;
+                 border:1px solid #3498db;color:#3498db;background:white;
+                 cursor:pointer;font-size:11px;">↺ Riprova</button>
+      </div>
+      <!-- Fallback coordinate manuali -->
+      <div id="manualCoords" style="display:none;margin-bottom:12px;
+           padding:10px;background:#fff3cd;border-radius:8px;border:1px solid #ffc107;">
+        <div style="font-size:12px;color:#856404;margin-bottom:8px;">
+          📍 GPS non disponibile — inserisci coordinate manualmente
+          <a href="https://maps.google.com" target="_blank" 
+             style="color:#3498db;margin-left:6px;font-size:11px;">
+            (cercale su Google Maps)
+          </a>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="number" id="manualLat" placeholder="Lat es. 41.7520" 
+            step="0.0001" style="flex:1;padding:7px;border-radius:6px;
+            border:1px solid #dee2e6;font-size:13px;">
+          <input type="number" id="manualLon" placeholder="Lon es. 12.7100"
+            step="0.0001" style="flex:1;padding:7px;border-radius:6px;
+            border:1px solid #dee2e6;font-size:13px;">
+          <button onclick="useManualCoords()"
+            style="padding:7px 12px;border-radius:6px;border:none;
+                   background:#3498db;color:white;cursor:pointer;font-size:13px;
+                   font-weight:bold;white-space:nowrap;">✅ Usa</button>
+        </div>
       </div>
 
       <!-- Tipo segnalazione -->
@@ -607,5 +634,136 @@
       </ul>
     </div>
   </div>
-  
-  <div styl
+  <div style="max-width: 1000px; margin: 30px auto; text-align: center;">
+    <a href="/" class="back-button">← Torna alle Previsioni Meteo</a>
+  </div>
+
+  <script>
+    // ── Timestamp ──────────────────────────────────────────────────────────────
+    const el = document.getElementById('currentTime');
+    if (el) el.textContent = new Date().toLocaleString('it-IT', {
+      weekday:'short', day:'numeric', month:'short', year:'numeric',
+      hour:'2-digit', minute:'2-digit'
+    });
+
+    // ── GPS ────────────────────────────────────────────────────────────────────
+    let userLat = null, userLon = null, selectedKind = null;
+
+    const errMessages = {
+      1: '❌ Permesso negato — abilita la posizione nelle impostazioni del browser',
+      2: '❌ Posizione non disponibile — scarsa copertura GPS',
+      3: '❌ Timeout — usa la posizione manuale',
+    };
+
+    function updateSubmitBtn() {
+      const desc = document.getElementById('reportDesc').value.trim();
+      document.getElementById('submitBtn').disabled = !(userLat && selectedKind && desc.length > 0);
+    }
+
+    function tryGPS() {
+      const dot  = document.getElementById('gpsDot');
+      const text = document.getElementById('gpsText');
+      const retry = document.getElementById('gpsRetry');
+      dot.className = 'gps-dot acquiring';
+      text.textContent = '⏳ Rilevamento posizione in corso...';
+      retry.style.display = 'none';
+
+      if (!('geolocation' in navigator)) {
+        dot.className = 'gps-dot error';
+        text.textContent = '❌ GPS non supportato da questo browser';
+        document.getElementById('manualCoords').style.display = 'block';
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          userLat = pos.coords.latitude;
+          userLon = pos.coords.longitude;
+          const acc = Math.round(pos.coords.accuracy);
+          dot.className = 'gps-dot ready';
+          text.textContent = `✅ Posizione rilevata (±${acc}m)`;
+          retry.style.display = 'none';
+          document.getElementById('manualCoords').style.display = 'none';
+          updateSubmitBtn();
+        },
+        err => {
+          dot.className = 'gps-dot error';
+          text.textContent = errMessages[err.code] || '❌ Errore GPS sconosciuto';
+          retry.style.display = 'inline-block';
+          document.getElementById('manualCoords').style.display = 'block';
+        },
+        { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 }
+      );
+    }
+
+    function showManualInput() {
+      document.getElementById('manualCoords').style.display = 'block';
+    }
+
+    function useManualCoords() {
+      const lat = parseFloat(document.getElementById('manualLat').value);
+      const lon = parseFloat(document.getElementById('manualLon').value);
+      if (isNaN(lat) || isNaN(lon)) { alert('Inserisci coordinate valide'); return; }
+      userLat = lat; userLon = lon;
+      document.getElementById('gpsDot').className = 'gps-dot ready';
+      document.getElementById('gpsText').textContent = `✅ Posizione manuale: ${lat.toFixed(4)}°N ${lon.toFixed(4)}°E`;
+      updateSubmitBtn();
+    }
+
+    // ── Selezione tipo ─────────────────────────────────────────────────────────
+    const selClasses = { ok:'sel-ok', muddy:'sel-muddy', closed:'sel-closed', danger:'sel-danger' };
+
+    function selectKind(btn) {
+      document.querySelectorAll('.kind-btn').forEach(b =>
+        b.classList.remove('selected','sel-ok','sel-muddy','sel-closed','sel-danger'));
+      selectedKind = btn.dataset.kind;
+      btn.classList.add('selected', selClasses[selectedKind]);
+      updateSubmitBtn();
+    }
+
+    // ── Invio ──────────────────────────────────────────────────────────────────
+    async function submitReport() {
+      if (!userLat || !selectedKind) return;
+      const btn    = document.getElementById('submitBtn');
+      const result = document.getElementById('submitResult');
+      btn.disabled = true;
+      btn.textContent = '⏳ Invio in corso...';
+
+      try {
+        const res = await fetch('/segnala', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lat:         userLat,
+            lon:         userLon,
+            kind:        selectedKind,
+            description: document.getElementById('reportDesc').value.trim(),
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          result.className = 'submit-result success';
+          result.textContent = '✅ Segnalazione inviata! Grazie. Ricarica la pagina per vederla.';
+          result.style.display = 'block';
+          document.getElementById('reportDesc').value = '';
+          document.querySelectorAll('.kind-btn').forEach(b =>
+            b.classList.remove('selected','sel-ok','sel-muddy','sel-closed','sel-danger'));
+          selectedKind = null;
+          updateSubmitBtn();
+        } else {
+          throw new Error(data.error);
+        }
+      } catch(e) {
+        result.className = 'submit-result error';
+        result.textContent = '❌ Errore: ' + e.message;
+        result.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = '📤 Invia Segnalazione';
+      }
+    }
+
+    // Avvia GPS al caricamento
+    tryGPS();
+  </script>
+</body>
+</html>
