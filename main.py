@@ -369,6 +369,146 @@ def calculate_soil_dryness(history_daily):
     }
 
 
+def calculate_soil_dryness_5d(history_daily):
+    """
+    Variante 5 giorni di calculate_soil_dryness.
+    Usa precip[-5:] invece di precip[-7:] per il calcolo SMI e rating.
+    """
+    precip = history_daily.get("daily", {}).get("precipitation_sum", [])
+    dates  = history_daily.get("daily", {}).get("time", [])
+
+    if not precip:
+        return None
+
+    dry_days = 0
+    for p in reversed(precip):
+        if p is None or p < 2.0:
+            dry_days += 1
+        else:
+            break
+
+    rain_5d = sum(p for p in precip[-5:] if p is not None)
+
+    if rain_5d < 4:
+        rating = "dry";       label = "Asciutto";  color = "#27ae60"
+    elif rain_5d < 12:
+        rating = "damp";      label = "Umido";     color = "#f7b733"
+    elif rain_5d < 28:
+        rating = "wet";       label = "Bagnato";   color = "#e67e22"
+    else:
+        rating = "saturated"; label = "Saturo";    color = "#e74c3c"
+
+    history_chart = []
+    for i, (d, p) in enumerate(zip(dates, precip)):
+        try:
+            dt = datetime.fromisoformat(d)
+            history_chart.append({
+                "date":  dt.strftime("%d/%m"),
+                "day":   dt.strftime("%a").replace("Mon","Lun").replace("Tue","Mar")
+                             .replace("Wed","Mer").replace("Thu","Gio").replace("Fri","Ven")
+                             .replace("Sat","Sab").replace("Sun","Dom"),
+                "precip": round(p, 1) if p is not None else 0,
+                "temp_max": round(history_daily["daily"].get("temperature_2m_max", [None]*len(dates))[i] or 0, 1),
+                "temp_min": round(history_daily["daily"].get("temperature_2m_min", [None]*len(dates))[i] or 0, 1),
+            })
+        except Exception:
+            continue
+
+    return {
+        "dry_days": dry_days,
+        "rain_7d":  round(rain_5d, 1),  # chiave mantenuta per compatibilità template
+        "rating":   rating,
+        "label":    label,
+        "color":    color,
+        "history":  history_chart,
+    }
+
+
+async def calculate_zone_matrix_5d(hourly_forecast: dict) -> list:
+    """
+    Variante 5 giorni di calculate_zone_matrix.
+    Usa storico 5gg e calculate_soil_dryness_5d per SMI e proiezioni.
+    """
+    from datetime import datetime, timedelta
+
+    now = datetime.now()
+
+    daily_forecast_precip = {}
+    for i, t in enumerate(hourly_forecast.get("time", [])):
+        try:
+            dt  = datetime.fromisoformat(t)
+            day = dt.date()
+            p   = hourly_forecast["precipitation"][i] if i < len(hourly_forecast.get("precipitation", [])) else 0
+            daily_forecast_precip[day] = daily_forecast_precip.get(day, 0) + (p or 0)
+        except Exception:
+            continue
+
+    matrix = []
+    for zone_key, geo in ZONE_GEOLOGY.items():
+        try:
+            history = await fetch_weather_history(geo["lat"], geo["lon"], days=5)
+            soil    = calculate_soil_dryness_5d(history)
+        except Exception:
+            soil = None
+
+        rain_5d   = soil["rain_7d"] if soil else 0  # chiave mantenuta per compatibilità
+        dry_days  = soil["dry_days"] if soil else 0
+        smi_now   = calculate_smi(rain_5d, geo["field_capacity"])
+        rec_days  = estimate_recovery_days(smi_now, geo["drainage_rate"])
+
+        days_out = []
+        for offset in range(3):
+            day    = (now + timedelta(days=offset)).date()
+            rain_f = round(daily_forecast_precip.get(day, 0), 1)
+
+            smi_proj = smi_now
+            for d in range(offset):
+                prev_day  = (now + timedelta(days=d)).date()
+                prev_rain = daily_forecast_precip.get(prev_day, 0)
+                if prev_rain < 2:
+                    smi_proj = max(0, smi_proj - geo["drainage_rate"] * 0.15)
+                elif prev_rain > 10:
+                    smi_proj = min(2.0, smi_proj + 0.2)
+
+            gng = gonogo(smi_proj, rain_f, dry_days + offset)
+
+            if offset == 0:   label = "Oggi"
+            elif offset == 1: label = "Domani"
+            else:             label = "Dopodomani"
+
+            days_out.append({
+                "label":  label,
+                "date":   day.isoformat(),
+                "smi":    round(smi_proj, 2),
+                "rain_f": rain_f,
+                **gng,
+            })
+
+        if smi_now > 1.2:    terrain_label, terrain_emoji = "Saturo",   "🔴"
+        elif smi_now > 0.8:  terrain_label, terrain_emoji = "Bagnato",  "🟠"
+        elif smi_now > 0.5:  terrain_label, terrain_emoji = "Umido",    "🟡"
+        else:                terrain_label, terrain_emoji = "Asciutto", "🟢"
+
+        matrix.append({
+            "key":            zone_key,
+            "name":           geo["name"],
+            "elevation":      geo["elevation"],
+            "geology":        geo["geology"],
+            "geology_detail": geo["geology_detail"],
+            "field_capacity": geo["field_capacity"],
+            "drainage_rate":  geo["drainage_rate"],
+            "rain_7d":        rain_5d,
+            "dry_days":       dry_days,
+            "smi":            smi_now,
+            "rec_days":       rec_days,
+            "terrain_label":  terrain_label,
+            "terrain_emoji":  terrain_emoji,
+            "days":           days_out,
+        })
+
+    return matrix
+
+
 def adjust_windows_for_soil(windows, soil_dryness, hourly_data=None):
     """
     Abbassa il rating delle finestre in base allo stato del terreno,
@@ -544,6 +684,201 @@ def project_soil_forecast(soil_dryness, hourly_data, riding_windows):
 
     return forecast
 
+
+# ─── Parametri geologici per zona ─────────────────────────────────────────────
+# field_capacity: mm pioggia che il terreno può contenere prima di saturarsi
+# drainage_rate:  livelli di recupero per giorno senza pioggia (1.0 = standard)
+# Dati derivati da letteratura scientifica su suoli vulcanici laziali
+ZONE_GEOLOGY = {
+    "monte_cavo": {
+        "name":           "Monte Cavo",
+        "elevation":      949,
+        "lat":            41.7634, "lon": 12.7166,
+        "geology":        "Tufo + pozzolana",
+        "geology_detail": "Tufo litoide in cima, pozzolana grigia sui versanti. Drenaggio rapido in superficie ma lento in profondità.",
+        "field_capacity": 45,   # mm
+        "drainage_rate":  1.4,  # recupera 1.4x più veloce della media
+    },
+    "faete": {
+        "name":           "Maschio delle Faete",
+        "elevation":      956,
+        "lat":            41.7680, "lon": 12.7420,
+        "geology":        "Tufo compatto",
+        "geology_detail": "Tufo stratificato compatto. Drenaggio mediocre, trattiene umidità a lungo.",
+        "field_capacity": 40,
+        "drainage_rate":  0.9,
+    },
+    "colle_jano": {
+        "name":           "Colle Jano",
+        "elevation":      768,
+        "lat":            41.7300, "lon": 12.6900,
+        "geology":        "Peperino + argilla",
+        "geology_detail": "Peperino compatto con strati argillosi. Drenaggio molto lento, alta ritenzione idrica.",
+        "field_capacity": 35,
+        "drainage_rate":  0.6,
+    },
+    "ariano": {
+        "name":           "Maschio d'Ariano",
+        "elevation":      811,
+        "lat":            41.7150, "lon": 12.7350,
+        "geology":        "Pozzolana + lapilli",
+        "geology_detail": "Pozzolana sciolta con lapilli vulcanici. Drenaggio eccellente, asciuga velocemente.",
+        "field_capacity": 52,
+        "drainage_rate":  1.6,
+    },
+    "artemisio": {
+        "name":           "Maschio d'Artemisio",
+        "elevation":      812,
+        "lat":            41.7050, "lon": 12.7500,
+        "geology":        "Tufo + pozzolana",
+        "geology_detail": "Alternanza tufo/pozzolana. Comportamento intermedio, buon drenaggio sui crinali.",
+        "field_capacity": 45,
+        "drainage_rate":  1.3,
+    },
+    "fontana_tempesta": {
+        "name":           "Fontana Tempesta",
+        "elevation":      720,
+        "lat":            41.7400, "lon": 12.7050,
+        "geology":        "Misto vulcanico",
+        "geology_detail": "Depositi misti: tufo, pozzolana e terre rosse. Drenaggio variabile per zona.",
+        "field_capacity": 42,
+        "drainage_rate":  1.0,
+    },
+}
+
+
+def calculate_smi(rain_7d: float, field_capacity: float) -> float:
+    """Soil Moisture Index: rapporto pioggia/capacità di campo. >1 = saturo."""
+    if field_capacity <= 0:
+        return 0.0
+    return round(rain_7d / field_capacity, 2)
+
+
+def estimate_recovery_days(smi: float, drainage_rate: float) -> int:
+    """
+    Stima giorni al recupero (SMI < 0.5 = Go sicuro).
+    Con pioggia prevista = 0 e temperatura positiva.
+    """
+    if smi <= 0.5:
+        return 0
+    # Ogni giorno senza pioggia il terreno recupera ~drainage_rate * 0.15 di SMI
+    daily_recovery = drainage_rate * 0.15
+    days = 0
+    current = smi
+    while current > 0.5 and days < 30:
+        current -= daily_recovery
+        days += 1
+    return days
+
+
+def gonogo(smi: float, rain_forecast_mm: float, dry_days: int) -> dict:
+    """
+    Calcola Go/Caution/NoGo per una zona+giorno.
+    
+    Regole:
+      NoGo    : SMI > 1.2  O  pioggia_prevista > 5mm
+      Caution : SMI 0.8-1.2 O  pioggia_prevista 2-5mm
+      Go      : SMI < 0.8  E  pioggia_prevista < 2mm
+    """
+    if smi > 1.2 or rain_forecast_mm > 5:
+        return {"status": "nogo",    "label": "Saturo",     "emoji": "🔴", "color": "#e74c3c"}
+    elif smi > 0.8 or rain_forecast_mm > 2:
+        return {"status": "caution", "label": "Fangoso",    "emoji": "🟠", "color": "#e67e22"}
+    elif smi > 0.5:
+        return {"status": "caution", "label": "Umido",      "emoji": "🟡", "color": "#f7b733"}
+    else:
+        return {"status": "go",      "label": "Praticabile","emoji": "🟢", "color": "#27ae60"}
+
+
+async def calculate_zone_matrix(hourly_forecast: dict) -> list:
+    """
+    Per ogni zona: recupera storico 7gg, calcola SMI, proietta Go/NoGo per 3 giorni.
+    """
+    from datetime import datetime, timedelta
+
+    now = datetime.now()
+
+    # Precipitazioni previste per i prossimi 3 giorni dall'hourly forecast
+    daily_forecast_precip = {}
+    for i, t in enumerate(hourly_forecast.get("time", [])):
+        try:
+            dt  = datetime.fromisoformat(t)
+            day = dt.date()
+            p   = hourly_forecast["precipitation"][i] if i < len(hourly_forecast.get("precipitation", [])) else 0
+            daily_forecast_precip[day] = daily_forecast_precip.get(day, 0) + (p or 0)
+        except Exception:
+            continue
+
+    LEVELS = ["saturated", "wet", "damp", "dry"]
+
+    matrix = []
+    for zone_key, geo in ZONE_GEOLOGY.items():
+        try:
+            history = await fetch_weather_history(geo["lat"], geo["lon"], days=7)
+            soil    = calculate_soil_dryness(history)
+        except Exception:
+            soil = None
+
+        rain_7d   = soil["rain_7d"] if soil else 0
+        dry_days  = soil["dry_days"] if soil else 0
+        smi_now   = calculate_smi(rain_7d, geo["field_capacity"])
+        rec_days  = estimate_recovery_days(smi_now, geo["drainage_rate"])
+
+        # Go/NoGo per oggi, domani, +2gg
+        days_out = []
+        for offset in range(3):
+            day      = (now + timedelta(days=offset)).date()
+            rain_f   = round(daily_forecast_precip.get(day, 0), 1)
+
+            # SMI proiettato: migliora di drainage_rate*0.15 per ogni giorno senza pioggia
+            smi_proj = smi_now
+            for d in range(offset):
+                prev_day = (now + timedelta(days=d)).date()
+                prev_rain = daily_forecast_precip.get(prev_day, 0)
+                if prev_rain < 2:
+                    smi_proj = max(0, smi_proj - geo["drainage_rate"] * 0.15)
+                elif prev_rain > 10:
+                    smi_proj = min(2.0, smi_proj + 0.2)
+
+            gng = gonogo(smi_proj, rain_f, dry_days + offset)
+
+            if offset == 0:   label = "Oggi"
+            elif offset == 1: label = "Domani"
+            else:             label = "Dopodomani" 
+
+            days_out.append({
+                "label":    label,
+                "date":     day.isoformat(),
+                "smi":      round(smi_proj, 2),
+                "rain_f":   rain_f,
+                **gng,
+            })
+
+        # Rating terreno attuale (testo)
+        if smi_now > 1.2:    terrain_label, terrain_emoji = "Saturo",   "🔴"
+        elif smi_now > 0.8:  terrain_label, terrain_emoji = "Bagnato",  "🟠"
+        elif smi_now > 0.5:  terrain_label, terrain_emoji = "Umido",    "🟡"
+        else:                terrain_label, terrain_emoji = "Asciutto", "🟢"
+
+        matrix.append({
+            "key":            zone_key,
+            "name":           geo["name"],
+            "elevation":      geo["elevation"],
+            "geology":        geo["geology"],
+            "geology_detail": geo["geology_detail"],
+            "field_capacity": geo["field_capacity"],
+            "drainage_rate":  geo["drainage_rate"],
+            "rain_7d":        rain_7d,
+            "dry_days":       dry_days,
+            "smi":            smi_now,
+            "rec_days":       rec_days,
+            "terrain_label":  terrain_label,
+            "terrain_emoji":  terrain_emoji,
+            "days":           days_out,
+        })
+
+    return matrix
+
 # ─── Routes ──────────────────────────────────────────────────────────────────
 @app.get("/")
 def root():
@@ -590,14 +925,12 @@ async def dashboard_completa(request: Request):
             overall_trail_conditions = calculate_trail_conditions(hourly)
             overall_riding_windows   = find_best_riding_windows(hourly)
 
-        # Storico precipitazioni per ogni località
         loc_soil_dryness = None
         try:
-            history = await fetch_weather_history(loc_info["lat"], loc_info["lon"], days=7)
-            loc_soil_dryness = calculate_soil_dryness(history)
+            history = await fetch_weather_history(loc_info["lat"], loc_info["lon"], days=5)
+            loc_soil_dryness = calculate_soil_dryness_5d(history)
             if soil_dryness is None:
-                soil_dryness = loc_soil_dryness  # mantieni il primo per compatibilità
-                # Aggiusta le finestre in base allo stato del terreno
+                soil_dryness = loc_soil_dryness
                 overall_riding_windows = adjust_windows_for_soil(overall_riding_windows, soil_dryness, hourly)
         except Exception as e:
             print(f"⚠️ Storico meteo non disponibile per {loc_info['name']}: {e}")
@@ -609,9 +942,15 @@ async def dashboard_completa(request: Request):
         })
 
     current_conditions = calculate_current_conditions(soil_dryness)
-    soil_forecast      = project_soil_forecast(soil_dryness, 
+    soil_forecast      = project_soil_forecast(soil_dryness,
                              all_data[0]["hourly"] if all_data else None,
                              overall_riding_windows)
+
+    try:
+        matrix = await calculate_zone_matrix_5d(all_data[0]["hourly"] if all_data else {})
+    except Exception as e:
+        print(f"⚠️ Matrice terreno non disponibile: {e}")
+        matrix = []
 
     return templates.TemplateResponse("dashboard_completa.html", {
         "request": request,
@@ -622,14 +961,92 @@ async def dashboard_completa(request: Request):
         "riding_windows":      overall_riding_windows,
         "soil_dryness":        soil_dryness,
         "visit_stats":         visit_stats,
+        "matrix":              matrix,
+    })
+
+
+@app.get("/admin/home-test", response_class=HTMLResponse)
+async def home_test(request: Request):
+    all_data    = []
+    overall_trail_conditions = None
+    overall_riding_windows   = None
+    soil_dryness = None
+
+    for loc_key, loc_info in LOCATIONS.items():
+        data   = await fetch_weather(loc_info["lat"], loc_info["lon"])
+        hourly = data["hourly"]
+        if overall_trail_conditions is None:
+            overall_trail_conditions = calculate_trail_conditions(hourly)
+            overall_riding_windows   = find_best_riding_windows(hourly)
+
+        loc_soil_dryness = None
+        try:
+            history = await fetch_weather_history(loc_info["lat"], loc_info["lon"], days=5)
+            loc_soil_dryness = calculate_soil_dryness_5d(history)
+            if soil_dryness is None:
+                soil_dryness = loc_soil_dryness
+                overall_riding_windows = adjust_windows_for_soil(overall_riding_windows, soil_dryness, hourly)
+        except Exception as e:
+            print(f"⚠️ Storico meteo non disponibile per {loc_info['name']}: {e}")
+
+        all_data.append({
+            "name": loc_info["name"], "elevation": loc_info["elevation"],
+            "hourly": {k: hourly.get(k, []) for k in ["time","temperature_2m","precipitation","weather_code","windspeed_10m","windgusts_10m"]},
+            "soil_dryness": loc_soil_dryness,
+        })
+
+    current_conditions = calculate_current_conditions(soil_dryness)
+    soil_forecast      = project_soil_forecast(soil_dryness,
+                             all_data[0]["hourly"] if all_data else None,
+                             overall_riding_windows)
+
+    try:
+        matrix = await calculate_zone_matrix_5d(all_data[0]["hourly"] if all_data else {})
+    except Exception as e:
+        print(f"⚠️ Matrice terreno non disponibile: {e}")
+        matrix = []
+
+    return templates.TemplateResponse("admin/home-test.html", {
+        "request":          request,
+        "locations_data":   all_data,
+        "trail_conditions": overall_trail_conditions,
+        "current_conditions": current_conditions,
+        "soil_forecast":    soil_forecast,
+        "riding_windows":   overall_riding_windows,
+        "soil_dryness":     soil_dryness,
+        "visit_stats":      {"today": 0, "total": 0},
+        "matrix":           matrix,
     })
 
 
 
+
+
+@app.get("/metodologia", response_class=HTMLResponse)
+async def metodologia(request: Request):
+    """Pagina di spiegazione della metodologia."""
+    return templates.TemplateResponse("metodologia.html", {"request": request})
+
+@app.get("/terreno", response_class=HTMLResponse)
+async def terreno(request: Request):
+    """Pagina principale: matrice Go/NoGo per zona."""
+    # Prendi hourly forecast dalla prima location per le precipitazioni previste
+    first_loc = list(LOCATIONS.values())[0]
+    data    = await fetch_weather(first_loc["lat"], first_loc["lon"])
+    hourly  = data["hourly"]
+    matrix  = await calculate_zone_matrix(hourly)
+    reports = get_active_reports()
+    return templates.TemplateResponse("terreno.html", {
+        "request": request,
+        "matrix":  matrix,
+        "reports": reports,
+        "updated": datetime.now().strftime("%d/%m/%Y %H:%M"),
+    })
+
 @app.get("/sim-report", response_class=HTMLResponse)
 async def sim_report():
     """Pagina di simulazione segnalazione GPS — solo per test."""
-    with open("templates/sim_report.html", "r") as f:
+    with open("templates/admin/sim_report.html", "r") as f:
         return f.read()
 
 
@@ -664,7 +1081,7 @@ async def admin_segnalazioni(request: Request, pwd: str = ""):
         """, status_code=401)
 
     reports = get_active_reports()
-    return templates.TemplateResponse("admin_segnalazioni.html", {
+    return templates.TemplateResponse("admin/admin_segnalazioni.html", {
         "request": request,
         "reports": reports,
         "pwd":     pwd,

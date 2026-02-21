@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏔️ Castelli Romani MTB — Condizioni Terreno</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#2c3e50">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: #f0f2f5; color: #2c3e50;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #2c3e50 0%, #3d5a80 100%);
+      color: white; padding: 16px 20px 12px; text-align: center;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; margin-bottom: 3px; }
+    .header .sub { font-size: 12px; opacity: 0.75; margin-bottom: 10px; }
+    .nav-pills { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; }
+    .nav-pill {
+      padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      text-decoration: none;
+    }
+    .nav-pill.white { background: white; color: #2c3e50; }
+    .nav-pill.ghost { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); }
+    .update-bar {
+      background: #263545; color: rgba(255,255,255,0.5);
+      text-align: center; font-size: 11px; padding: 4px;
+    }
+
+    .container { max-width: 1200px; margin: 20px auto; padding: 0 16px 40px; }
+
+    /* ── Matrix ── */
+    .matrix-wrap {
+      background: white; border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.09); overflow-x: auto;
+    }
+
+    table.matrix { width: 100%; border-collapse: collapse; min-width: 700px; }
+
+    table.matrix thead th {
+      padding: 13px 16px; font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      background: #2c3e50; color: white;
+      border-right: 1px solid #3d5168;
+    }
+    table.matrix thead th:last-child { border-right: none; }
+    table.matrix thead th.day-head   { text-align: center; }
+
+    table.matrix tbody tr { border-bottom: 1px solid #ecf0f1; }
+    table.matrix tbody tr:last-child { border-bottom: none; }
+    table.matrix tbody tr:hover td   { background: #fafbfc; }
+
+    /* Zone column */
+    td.zone-col {
+      padding: 14px 16px; width: 240px; min-width: 200px;
+      border-right: 2px solid #e8ecef; vertical-align: top;
+    }
+    .zone-name { font-size: 15px; font-weight: 700; }
+    .zone-meta { font-size: 11px; color: #95a5a6; margin-top: 2px; }
+
+    .zone-state { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #ecf0f1; }
+    .zs-row { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; font-size: 11px; }
+    .zs-val  { font-weight: 700; }
+    .zs-lbl  { color: #95a5a6; }
+
+    .smi-bar-track { height: 5px; background: #ecf0f1; border-radius: 3px; overflow: hidden; margin: 5px 0 4px; }
+    .smi-bar-fill  { height: 100%; border-radius: 3px; }
+
+    /* Day cells */
+    td.day-col {
+      width: 19%; padding: 14px 10px; text-align: center;
+      border-right: 1px solid #ecf0f1; vertical-align: top;
+    }
+    td.day-col:last-child { border-right: none; }
+
+    td.day-col.bg-go      { background: rgba(39,174,96,0.04); }
+    td.day-col.bg-caution { background: rgba(230,126,34,0.05); }
+    td.day-col.bg-att     { background: rgba(247,183,51,0.06); }
+    td.day-col.bg-nogo    { background: rgba(231,76,60,0.05); }
+
+    .gng-emoji { font-size: 30px; line-height: 1; margin-bottom: 4px; }
+    .gng-label { font-size: 14px; font-weight: 800; margin-bottom: 8px; }
+    .gng-label.go      { color: #27ae60; }
+    .gng-label.caution { color: #e67e22; }
+    .gng-label.att     { color: #c9a227; }
+    .gng-label.nogo    { color: #e74c3c; }
+
+    .day-detail {
+      font-size: 11px; color: #7f8c8d; line-height: 1.7;
+      border-top: 1px dashed #ecf0f1; padding-top: 7px;
+      text-align: left;
+    }
+    .day-detail span { display: block; }
+    .rain-hi { color: #e74c3c; font-weight: 700; }
+
+    /* Legend & note */
+    .legend {
+      margin-top: 14px; background: white; border-radius: 10px;
+      padding: 12px 16px; display: flex; gap: 18px; flex-wrap: wrap;
+      align-items: center; font-size: 12px; color: #555;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    }
+    .legend strong { color: #2c3e50; }
+    .li { display: flex; align-items: center; gap: 5px; }
+    .ld { width: 11px; height: 11px; border-radius: 50%; }
+
+    .note {
+      margin-top: 12px; background: #fff3cd; border-left: 4px solid #ffc107;
+      border-radius: 8px; padding: 11px 16px; font-size: 12px; color: #856404; line-height: 1.6;
+    }
+    .note a { color: #856404; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏔️ Castelli Romani MTB</h1>
+  <div class="sub">Matrice Go/NoGo per zona — aggiornata ogni ora</div>
+  <div class="nav-pills">
+    <a href="/percorsi"           class="nav-pill white">🗺️ Percorsi</a>
+    <a href="/avvisi"             class="nav-pill ghost">📢 Avvisi</a>
+    <a href="/dashboard-completa" class="nav-pill ghost">📊 Meteo</a>
+    <a href="/metodologia"        class="nav-pill ghost">📖 Metodologia</a>
+  </div>
+</div>
+<div class="update-bar">Aggiornato: {{ updated }}</div>
+
+<div class="container">
+  <div class="matrix-wrap">
+    <table class="matrix">
+      <thead>
+        <tr>
+          <th style="text-align:left">Zona</th>
+          {% for day in matrix[0].days %}
+          <th class="day-head">{{ day.label }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for z in matrix %}
+        <tr>
+
+          <!-- Zona -->
+          <td class="zone-col">
+            <div class="zone-name">{{ z.name }}</div>
+            <div class="zone-meta">⛰️ {{ z.elevation }}m &nbsp;·&nbsp; 🪨 {{ z.geology }}</div>
+
+            <div class="zone-state">
+              <div class="zs-row">
+                <span class="zs-val">{{ z.terrain_emoji }} {{ z.terrain_label }}</span>
+                <span class="zs-lbl">— adesso</span>
+              </div>
+              <div class="zs-row">
+                <span class="zs-lbl">SMI&nbsp;</span>
+                <span class="zs-val" style="color:{% if z.smi > 1.2 %}#e74c3c{% elif z.smi > 0.8 %}#e67e22{% elif z.smi > 0.5 %}#c9a227{% else %}#27ae60{% endif %}">{{ z.smi }}</span>
+              </div>
+              <div class="zs-row"><span class="zs-lbl">💧 {{ z.rain_7d }}mm negli ultimi 7gg</span></div>
+              <div class="zs-row"><span class="zs-lbl">☀️ {{ z.dry_days }} giorni senza pioggia</span></div>
+
+              <div class="smi-bar-track">
+                <div class="smi-bar-fill" style="width:{{ [z.smi / 2 * 100, 100] | min }}%; background:{% if z.smi > 1.2 %}#e74c3c{% elif z.smi > 0.8 %}#e67e22{% elif z.smi > 0.5 %}#f7b733{% else %}#27ae60{% endif %}"></div>
+              </div>
+
+              <div class="zs-row" style="margin-top:3px">
+                {% if z.rec_days == 0 %}
+                  <span class="zs-lbl">✅ Già praticabile</span>
+                {% elif z.rec_days == 1 %}
+                  <span class="zs-lbl">📅 Recupero atteso: domani</span>
+                {% else %}
+                  <span class="zs-lbl">📅 Recupero stimato: ~{{ z.rec_days }}gg</span>
+                {% endif %}
+              </div>
+              <a href="/metodologia#{{ z.key }}" style="font-size:10px;color:#3498db;text-decoration:none">📖 come calcolato</a>
+            </div>
+          </td>
+
+          <!-- Giornate -->
+          {% for day in z.days %}
+          {% set bg = "bg-" + ("att" if day.label == "Attenzione" else day.status) %}
+          <td class="day-col {{ bg }}">
+            <div class="gng-emoji">{{ day.emoji }}</div>
+            <div class="gng-label {% if day.status == 'go' %}go{% elif day.status == 'nogo' %}nogo{% elif day.label == 'Attenzione' %}att{% else %}caution{% endif %}">
+              {{ day.label }}
+            </div>
+            <div class="day-detail">
+              <span>SMI {{ day.smi }}</span>
+              <span class="{% if day.rain_f > 5 %}rain-hi{% endif %}">💧 {{ day.rain_f }}mm prev.</span>
+            </div>
+          </td>
+          {% endfor %}
+
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <strong>Legenda:</strong>
+    <div class="li"><span class="ld" style="background:#27ae60"></span>🟢 <strong>Praticabile</strong> — asciutto, nessun rischio</div>
+    <div class="li"><span class="ld" style="background:#f7b733"></span>🟡 <strong>Umido</strong> — possibili chiazze di fango</div>
+    <div class="li"><span class="ld" style="background:#e67e22"></span>🟠 <strong>Fangoso</strong> — solchi, erosione superficiale</div>
+    <div class="li"><span class="ld" style="background:#e74c3c"></span>🔴 <strong>Saturo</strong> — smottamenti, danni permanenti ai sentieri</div>
+    <span style="border-left:1px solid #ddd;padding-left:14px;color:#7f8c8d">
+      SMI = Soil Moisture Index (0=asciutto · &gt;1.2=saturo) &nbsp;·&nbsp; mm prev. = pioggia prevista quel giorno
+    </span>
+  </div>
+
+  <div class="note">
+    🏔️ <strong>Nota:</strong> i valori SMI si basano su parametri geologici stimati — non su misurazioni dirette.
+    Dai sempre priorità alle <a href="/avvisi">segnalazioni della community</a> per confermare le condizioni reali.
+    &nbsp;·&nbsp; <a href="/metodologia">Leggi la metodologia completa →</a>
+  </div>
+</div>
+</body>
+</html>
