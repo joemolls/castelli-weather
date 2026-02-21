@@ -693,7 +693,7 @@ ZONE_GEOLOGY = {
     "monte_cavo": {
         "name":           "Monte Cavo",
         "elevation":      949,
-        "lat":            41.7634, "lon": 12.7166,
+        "lat":            41.7517, "lon": 12.7100,
         "geology":        "Tufo + pozzolana",
         "geology_detail": "Tufo litoide in cima, pozzolana grigia sui versanti. Drenaggio rapido in superficie ma lento in profondità.",
         "field_capacity": 45,   # mm
@@ -702,7 +702,7 @@ ZONE_GEOLOGY = {
     "faete": {
         "name":           "Maschio delle Faete",
         "elevation":      956,
-        "lat":            41.7680, "lon": 12.7420,
+        "lat":            41.7569, "lon": 12.7442,
         "geology":        "Tufo compatto",
         "geology_detail": "Tufo stratificato compatto. Drenaggio mediocre, trattiene umidità a lungo.",
         "field_capacity": 40,
@@ -710,8 +710,8 @@ ZONE_GEOLOGY = {
     },
     "colle_jano": {
         "name":           "Colle Jano",
-        "elevation":      768,
-        "lat":            41.7300, "lon": 12.6900,
+        "elevation":      938,
+        "lat":            41.7570, "lon": 12.7260,
         "geology":        "Peperino + argilla",
         "geology_detail": "Peperino compatto con strati argillosi. Drenaggio molto lento, alta ritenzione idrica.",
         "field_capacity": 35,
@@ -719,8 +719,8 @@ ZONE_GEOLOGY = {
     },
     "ariano": {
         "name":           "Maschio d'Ariano",
-        "elevation":      811,
-        "lat":            41.7150, "lon": 12.7350,
+        "elevation":      891,
+        "lat":            41.7394, "lon": 12.7908,
         "geology":        "Pozzolana + lapilli",
         "geology_detail": "Pozzolana sciolta con lapilli vulcanici. Drenaggio eccellente, asciuga velocemente.",
         "field_capacity": 52,
@@ -729,7 +729,7 @@ ZONE_GEOLOGY = {
     "artemisio": {
         "name":           "Maschio d'Artemisio",
         "elevation":      812,
-        "lat":            41.7050, "lon": 12.7500,
+        "lat":            41.7122, "lon": 12.7534,
         "geology":        "Tufo + pozzolana",
         "geology_detail": "Alternanza tufo/pozzolana. Comportamento intermedio, buon drenaggio sui crinali.",
         "field_capacity": 45,
@@ -737,8 +737,8 @@ ZONE_GEOLOGY = {
     },
     "fontana_tempesta": {
         "name":           "Fontana Tempesta",
-        "elevation":      720,
-        "lat":            41.7400, "lon": 12.7050,
+        "elevation":      560,
+        "lat":            41.7350, "lon": 12.7120,
         "geology":        "Misto vulcanico",
         "geology_detail": "Depositi misti: tufo, pozzolana e terre rosse. Drenaggio variabile per zona.",
         "field_capacity": 42,
