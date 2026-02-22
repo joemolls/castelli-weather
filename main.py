@@ -178,7 +178,7 @@ def calculate_trail_conditions(hourly_data):
     if score >= 80:
         rating = "excellent"; rating_text = "🟢 OTTIME";   rating_emoji = "🚴‍♂️"
     elif score >= 60:
-        rating = "good";      rating_text = "🟡 DISCRETE"; rating_emoji = "⚠️"
+        rating = "good";      rating_text = "🟡 PERCORRIBILI"; rating_emoji = "⚠️"
     else:
         rating = "poor";      rating_text = "🔴 DIFFICILI"; rating_emoji = "❌"
 
@@ -218,7 +218,7 @@ def calculate_current_conditions(soil_dryness):
         reasons.append(f"⏳ {dry_days} giorn{'o' if dry_days==1 else 'i'} senza pioggia")
     elif rating_soil == "damp":
         score = 70
-        reasons.append(f"🟡 Terreno umido ({rain_7d:.0f}mm negli ultimi 5 giorni)")
+        reasons.append(f"🟡 Terreno umido ({rain_7d:.0f}mm negli ultimi 5 giorni) — percorribile con attenzione")
         reasons.append(f"✅ Sentieri percorribili con attenzione")
         reasons.append(f"☀️ {dry_days} giorn{'o' if dry_days==1 else 'i'} senza pioggia")
     else:  # dry
@@ -230,7 +230,7 @@ def calculate_current_conditions(soil_dryness):
     if score >= 80:
         rating = "excellent"; rating_text = "🟢 ASCIUTTI";  rating_emoji = "✅"
     elif score >= 55:
-        rating = "good";      rating_text = "🟡 UMIDI";     rating_emoji = "⚠️"
+        rating = "good";      rating_text = "🟡 PERCORRIBILI"; rating_emoji = "⚠️"
     elif score >= 35:
         rating = "good";      rating_text = "🟠 BAGNATI";   rating_emoji = "⚠️"
     else:
@@ -944,7 +944,7 @@ def gonogo(smi: float, rain_forecast_mm: float, dry_days: int) -> dict:
     elif smi > 0.8 or rain_forecast_mm > 2:
         return {"status": "caution", "label": "Fangoso",    "emoji": "🟠", "color": "#e67e22"}
     elif smi > 0.5:
-        return {"status": "caution", "label": "Umido",      "emoji": "🟡", "color": "#f7b733"}
+        return {"status": "caution", "label": "Umido",      "emoji": "🟡", "color": "#f7b733", "note": "percorribile"}
     else:
         return {"status": "go",      "label": "Praticabile","emoji": "🟢", "color": "#27ae60"}
 

@@ -185,6 +185,11 @@
       border-radius: 50%;
       flex-shrink: 0;
     }
+    .dot-damp {
+      display: inline-block; border-radius: 50%;
+      background: linear-gradient(90deg, #27ae60 50%, #f7b733 50%);
+      vertical-align: middle; flex-shrink: 0;
+    }
 
     /* Storico 14 giorni */
     .history-section {
@@ -544,7 +549,7 @@
           <td style="padding:0;border-right:1px solid #ecf0f1;background:{{ bg }};vertical-align:middle;">
             <div class="day-cell-inner" style="display:flex;align-items:center;height:100%;">
               <div class="day-cell-left" style="flex:1;text-align:center;padding:5px 4px;border-right:1px dashed #ecf0f1;">
-                <div style="font-size:16px;line-height:1">{{ day.emoji }}</div>
+                <div style="font-size:16px;line-height:1">{% if day.emoji == '🟡' %}<span class="dot-damp" style="width:16px;height:16px;display:inline-block"></span>{% else %}{{ day.emoji }}{% endif %}</div>
                 <div style="font-size:10px;font-weight:800;color:{% if day.status == 'go' %}#27ae60{% elif day.status == 'nogo' %}#e74c3c{% elif day.label == 'Attenzione' %}#c9a227{% else %}#e67e22{% endif %}">{{ day.label }}</div>
               </div>
               <div class="day-cell-right" style="flex:1;padding:5px 4px;font-size:9px;color:#7f8c8d;line-height:1.7;text-align:left;">
@@ -559,7 +564,7 @@
           {% if loop.first %}
           <td class="legend-col-td" rowspan="{{ matrix | length }}" style="padding:8px 8px;vertical-align:middle;border-left:2px solid #ecf0f1;font-size:10px;color:#555;line-height:2;">
             <div style="display:flex;align-items:baseline;gap:5px"><span>🟢</span><div><strong>Praticabile</strong><div style="font-size:9px;color:#95a5a6">terreno asciutto, nessun rischio</div></div></div>
-            <div style="display:flex;align-items:baseline;gap:5px"><span>🟡</span><div><strong>Umido</strong><div style="font-size:9px;color:#95a5a6">possibili chiazze di fango, attenzione</div></div></div>
+            <div style="display:flex;align-items:baseline;gap:5px"><span class="dot-damp" style="width:1em;height:1em;margin-top:2px"></span><div><strong>Umido</strong><div style="font-size:9px;color:#95a5a6">percorribile — qualche tratto umido in ombra</div></div></div>
             <div style="display:flex;align-items:baseline;gap:5px"><span>🟠</span><div><strong>Fangoso</strong><div style="font-size:9px;color:#95a5a6">solchi, erosione superficiale</div></div></div>
             <div style="display:flex;align-items:baseline;gap:5px"><span>🔴</span><div><strong>Saturo</strong><div style="font-size:9px;color:#95a5a6">smottamenti, danni permanenti ai sentieri</div></div></div>
             <div style="margin-top:5px;padding-top:5px;border-top:1px dashed #ecf0f1;color:#bdc3c7;font-size:9px;line-height:1.6">
@@ -578,7 +583,7 @@
   <!-- Legenda mobile (visibile solo su schermi piccoli) -->
   <div class="matrix-legend-mobile" style="max-width:1000px;margin:0 8px 16px;">
     <div class="leg-item">🟢 <strong>Praticabile</strong> — asciutto</div>
-    <div class="leg-item">🟡 <strong>Umido</strong> — chiazze di fango</div>
+    <div class="leg-item"><span class="dot-damp" style="width:10px;height:10px;margin-right:4px;display:inline-block"></span> <strong>Umido</strong> — percorribile con attenzione</div>
     <div class="leg-item">🟠 <strong>Fangoso</strong> — solchi, erosione</div>
     <div class="leg-item">🔴 <strong>Saturo</strong> — danni ai sentieri</div>
     <div style="width:100%;color:#bdc3c7;font-size:10px;margin-top:2px">

@@ -107,6 +107,11 @@
     .legend strong { color: #2c3e50; }
     .li { display: flex; align-items: center; gap: 5px; }
     .ld { width: 11px; height: 11px; border-radius: 50%; }
+    .dot-damp {
+      display: inline-block; width: 1em; height: 1em; border-radius: 50%;
+      background: linear-gradient(90deg, #27ae60 50%, #f7b733 50%);
+      vertical-align: middle; flex-shrink: 0;
+    }
 
     .note {
       margin-top: 12px; background: #fff3cd; border-left: 4px solid #ffc107;
@@ -151,7 +156,7 @@
 
             <div class="zone-state">
               <div class="zs-row">
-                <span class="zs-val">{{ z.terrain_emoji }} {{ z.terrain_label }}</span>
+                <span class="zs-val">{% if z.terrain_emoji == '🟡' %}<span class="dot-damp" style="width:14px;height:14px;display:inline-block;vertical-align:middle"></span>{% else %}{{ z.terrain_emoji }}{% endif %} {{ z.terrain_label }}</span>
                 <span class="zs-lbl">— adesso</span>
               </div>
               <div class="zs-row">
@@ -182,7 +187,7 @@
           {% for day in z.days %}
           {% set bg = "bg-" + ("att" if day.label == "Attenzione" else day.status) %}
           <td class="day-col {{ bg }}">
-            <div class="gng-emoji">{{ day.emoji }}</div>
+            <div class="gng-emoji">{% if day.emoji == '🟡' %}<span class="dot-damp" style="width:30px;height:30px;display:inline-block"></span>{% else %}{{ day.emoji }}{% endif %}</div>
             <div class="gng-label {% if day.status == 'go' %}go{% elif day.status == 'nogo' %}nogo{% elif day.label == 'Attenzione' %}att{% else %}caution{% endif %}">
               {{ day.label }}
             </div>
@@ -202,7 +207,7 @@
   <div class="legend">
     <strong>Legenda:</strong>
     <div class="li"><span class="ld" style="background:#27ae60"></span>🟢 <strong>Praticabile</strong> — asciutto, nessun rischio</div>
-    <div class="li"><span class="ld" style="background:#f7b733"></span>🟡 <strong>Umido</strong> — possibili chiazze di fango</div>
+    <div class="li"><span class="ld dot-damp"></span>🟡 <strong>Umido</strong> — percorribile, qualche tratto umido nei settori in ombra</div>
     <div class="li"><span class="ld" style="background:#e67e22"></span>🟠 <strong>Fangoso</strong> — solchi, erosione superficiale</div>
     <div class="li"><span class="ld" style="background:#e74c3c"></span>🔴 <strong>Saturo</strong> — smottamenti, danni permanenti ai sentieri</div>
     <span style="border-left:1px solid #ddd;padding-left:14px;color:#7f8c8d">

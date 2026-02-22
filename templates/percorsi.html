@@ -235,6 +235,11 @@
       h1 { font-size: 20px; }
       #map { height: 320px; }
     }
+    .dot-damp {
+      display: inline-block; border-radius: 50%;
+      background: linear-gradient(90deg, #27ae60 50%, #f7b733 50%);
+      vertical-align: middle; flex-shrink: 0;
+    }
   </style>
 </head>
 <body>
@@ -367,7 +372,7 @@
         &nbsp;·&nbsp; SMI {{ gpx.smi }}
       </div>
       <span class="soil-badge {{ 'poor' if gpx.smi > 1.2 else ('medium' if gpx.smi > 0.8 else ('good' if gpx.smi > 0.5 else 'excellent')) }}">
-        {{ gpx.terrain_emoji }} Terreno {{ gpx.terrain_label }}
+        {% if gpx.terrain_emoji == '🟡' %}<span class="dot-damp" style="width:14px;height:14px;display:inline-block"></span>{% else %}{{ gpx.terrain_emoji }}{% endif %} Terreno {{ gpx.terrain_label }}
       </span>
       {% if gpx.soil_forecast %}
       <div class="riding-windows">
