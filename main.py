@@ -40,10 +40,10 @@ async def head_dashboard():
 
 # ─── GPX locali — metadati e colori (devono corrispondere al JS in percorsi.html) ─
 GPX_FILES = [
-    {"key": "gpx-0", "file": "static/gpx/AeB_AmiciBici_C.R.1.gpx",  "name": "AeB Amici Bici C.R.",     "color": "#e74c3c"},
-    {"key": "gpx-1", "file": "static/gpx/Like_Epic_100_C.R.6.gpx",  "name": "Like Epic 100 C.R.",       "color": "#e67e22"},
-    {"key": "gpx-2", "file": "static/gpx/Like_Epic_50_C.R.4.gpx",   "name": "Like Epic 50 C.R.",        "color": "#2980b9"},
-    {"key": "gpx-3", "file": "static/gpx/Monte_Cavo_Colle_Iano.gpx", "name": "Monte Cavo - Colle Jano", "color": "#27ae60"},
+    {"key": "gpx-0", "file": "static/gpx/AeB_AmiciBici_C.R.1.gpx",  "name": "A&B Amici e Bici C.R.1",     "color": "#27ae60"},
+    {"key": "gpx-1", "file": "static/gpx/Like_Epic_100_C.R.6.gpx",  "name": "Like Epic 100 C.R.6",       "color": "#e67e22"},
+    {"key": "gpx-2", "file": "static/gpx/Like_Epic_50_C.R.4.gpx",   "name": "Like Epic 50 C.R.4",        "color": "#2980b9"},
+    {"key": "gpx-3", "file": "static/gpx/Monte_Cavo_Colle_Iano.gpx", "name": "Monte Cavo - Colle Jano", "color": "#e74c3c"},
     {"key": "gpx-4", "file": "static/gpx/P2P_Castelli_Romani.gpx",  "name": "P2P Castelli Romani",      "color": "#8e44ad"},
 ]
 
