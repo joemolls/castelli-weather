@@ -523,7 +523,29 @@ async def fetch_starred_segments() -> List[Dict]:
                     print(f"  ✅ {d.get('name')} - {d.get('effort_count', 0):,} tentativi")
 
                 except Exception as e:
-                    print(f"  ❌ Errore segmento {seg_id}: {e}")
+                    print(f"  ⚠️ Errore dettaglio segmento {seg_id} — uso dati base: {e}")
+                    # Fallback: usa i dati base già disponibili dallo step 1
+                    segments.append({
+                        "id":               seg_id,
+                        "name":             s.get("name", ""),
+                        "distance_km":      round(s.get("distance", 0) / 1000, 2),
+                        "avg_grade":        s.get("average_grade", 0),
+                        "max_grade":        s.get("maximum_grade", 0),
+                        "elevation_gain":   round(s.get("total_elevation_gain", 0)),
+                        "effort_count":     s.get("effort_count", 0),
+                        "athlete_count":    s.get("athlete_count", 0),
+                        "kom":              "N/A",
+                        "elevation_profile":"",
+                        "link":             f"https://www.strava.com/segments/{seg_id}",
+                        "pr_time":          "N/A",
+                        "pr_date":          "",
+                        "pr_efforts":       0,
+                        "legend_name":      "",
+                        "legend_efforts":   "",
+                        "start_latlng":     s.get("start_latlng", []),
+                        "end_latlng":       s.get("end_latlng", []),
+                        "polyline":         s.get("map", {}).get("polyline", ""),
+                    })
                     continue
 
             print(f"✅ Recuperati {len(segments)} segmenti con dettagli")
