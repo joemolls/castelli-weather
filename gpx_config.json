@@ -34,5 +34,11 @@
     "file": "static/gpx/Cavo_Jano_Faete.gpx",
     "name": "Cavo, Jano (+ Rovi) e Faete",
     "color": "#f71702"
+  },
+  {
+    "key": "gpx-6",
+    "file": "static/gpx/Quasi1800.gpx",
+    "name": "Quasi 1800",
+    "color": "#3ef068"
   }
 ]
