@@ -38,14 +38,34 @@ async def head_root():
 async def head_dashboard():
     return {}
 
-# ─── GPX locali — metadati e colori (devono corrispondere al JS in percorsi.html) ─
-GPX_FILES = [
-    {"key": "gpx-0", "file": "static/gpx/AeB_AmiciBici_C.R.1.gpx",  "name": "A&B Amici e Bici C.R.1",     "color": "#27ae60"},
-    {"key": "gpx-1", "file": "static/gpx/Like_Epic_100_C.R.6.gpx",  "name": "Like Epic 100 C.R.6",       "color": "#e67e22"},
-    {"key": "gpx-2", "file": "static/gpx/Like_Epic_50_C.R.4.gpx",   "name": "Like Epic 50 C.R.4",        "color": "#2980b9"},
-    {"key": "gpx-3", "file": "static/gpx/Monte_Cavo_Colle_Iano.gpx", "name": "Monte Cavo - Colle Jano", "color": "#e74c3c"},
-    {"key": "gpx-4", "file": "static/gpx/P2P_Castelli_Romani.gpx",  "name": "P2P Castelli Romani",      "color": "#8e44ad"},
-]
+# ─── GPX locali — caricati da gpx_config.json ────────────────────────────────
+# Per aggiungere un nuovo percorso:
+#   1. Copia il file .gpx in static/gpx/
+#   2. Aggiungi una voce in gpx_config.json (non toccare main.py)
+#   3. Riavvia il server
+#
+# Formato di ogni voce in gpx_config.json:
+#   { "key": "gpx-N", "file": "static/gpx/nome.gpx", "name": "Nome visibile", "color": "#rrggbb" }
+#   Il "key" deve essere univoco e progressivo (gpx-0, gpx-1, ...).
+# ─────────────────────────────────────────────────────────────────────────────
+import json as _json
+
+_GPX_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "gpx_config.json")
+
+def _load_gpx_config() -> list:
+    try:
+        with open(_GPX_CONFIG_PATH, "r", encoding="utf-8") as _f:
+            _data = _json.load(_f)
+        print(f"✅ gpx_config.json caricato: {len(_data)} percorsi")
+        return _data
+    except FileNotFoundError:
+        print(f"⚠️ gpx_config.json non trovato in {_GPX_CONFIG_PATH} — uso lista vuota")
+        return []
+    except _json.JSONDecodeError as _e:
+        print(f"❌ Errore parsing gpx_config.json: {_e} — uso lista vuota")
+        return []
+
+GPX_FILES = _load_gpx_config()
 
 # ─── Cache in-memory GPX (popolata una sola volta al primo accesso) ────────────
 # I file GPX non cambiano mai a runtime — non ha senso rileggerli ad ogni request.
